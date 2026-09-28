@@ -174,11 +174,14 @@ def rel(from_page: str, target: str) -> str:
     return os.path.relpath(ROOT / target, (ROOT / from_page).parent).replace(os.sep, "/")
 
 
-def page(title, body, page_path, description="", wide=False):
+NAV = [("Home", "index.html"), ("Materials", "materials.html"), ("Homework", "homework.html"),
+       ("Project", "project.html"), ("Syllabus", "syllabus.html")]
+
+
+def page(title, body, page_path, description="", active=""):
     r = lambda p: rel(page_path, p)
-    nav = [("Modules", r("index.html") + "#modules"), ("Homework", r("index.html") + "#homework"),
-           ("Project", r("index.html") + "#project"), ("Syllabus", r("syllabus.html"))]
-    nav_html = "".join(f'<a href="{h}">{n}</a>' for n, h in nav)
+    on = ' class="on"'
+    nav_html = "".join(f'<a href="{r(h)}"{on if n == active else ""}>{n}</a>' for n, h in NAV)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -186,6 +189,9 @@ def page(title, body, page_path, description="", wide=False):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
 <meta name="description" content="{html.escape(description or SITE_TITLE)}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="{r('assets/style.css')}">
 <script>
 window.MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] }} }};
@@ -193,21 +199,19 @@ window.MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body>
-<header class="site-header">
-  <div class="wrap header-row">
-    <a class="brand" href="{r('index.html')}"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
-    <nav>{nav_html}<a href="{REPO_URL}" class="gh">GitHub</a></nav>
+<header class="bar">
+  <div class="wrap">
+    <a class="course" href="{r('index.html')}">ISYE 671</a>
+    <nav>{nav_html}</nav>
   </div>
 </header>
-<main class="wrap {'wide' if wide else 'doc'}">
+<main class="wrap">
 {body}
 </main>
-<footer class="site-footer">
-  <div class="wrap">
-    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
-    Materials are shared under <a href="{REPO_URL}/blob/{BRANCH}/LICENSE">CC BY-NC-SA 4.0</a>.
-    Homework solutions and exams are not published.</p>
-  </div>
+<footer class="wrap foot">
+  ISYE 671 · Northern Illinois University · Spring 2026 ·
+  <a href="{REPO_URL}">Source on GitHub</a> ·
+  <a href="{REPO_URL}/blob/{BRANCH}/LICENSE">CC BY-NC-SA 4.0</a>
 </footer>
 </body>
 </html>
@@ -216,156 +220,161 @@ window.MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\
 
 def downloads_for(md_path: Path):
     """Sibling files with the same stem (or stem-slides) that visitors can download."""
-    out = [(".md", md_path)]
+    out = [("Markdown", md_path)]
     for stem in (md_path.stem, md_path.stem + "-slides"):
         for ext in (".pdf", ".pptx", ".docx"):
-            p = md_path.with_name(stem + ext)
-            if p.exists():
-                label = ("Slides " if stem.endswith("-slides") else "") + ext[1:].upper()
-                out.append((label, p))
+            q = md_path.with_name(stem + ext)
+            if q.exists():
+                label = ("slides " if stem.endswith("-slides") else "") + ext[1:].upper()
+                out.append((label, q))
     return out
 
 
 def render_doc(pandoc, md_path: Path):
-    relpath = md_path.relative_to(ROOT).as_posix()
     html_path = md_path.with_suffix(".html")
+    page_rel = html_path.relative_to(ROOT).as_posix()
     frag = subprocess.run(
         [pandoc, str(md_path), "-f", "markdown+tex_math_dollars+pipe_tables+raw_html-implicit_figures",
          "-t", "html5", "--mathjax", "--wrap=none"],
         capture_output=True, text=True, check=True).stdout
     m = re.search(r"<h1[^>]*>(.*?)</h1>", frag, re.S)
     title = re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else md_path.stem.replace("-", " ").title()
-    if md_path.name == "syllabus.md":
+    section = {"lectures": "Materials", "exercises": "Materials", "homework": "Homework",
+               "project": "Project"}.get(md_path.parent.name, "Syllabus")
+    if section == "Syllabus":
         title = "Syllabus"
-    dl = " ".join(
-        f'<a class="chip" href="{os.path.relpath(p, html_path.parent)}" download>{html.escape(label)}</a>'
-        for label, p in downloads_for(md_path))
-    section = md_path.parent.name if md_path.parent != ROOT else ""
-    crumb = f'<a href="{rel(relpath, "index.html")}">Home</a>' + (f" / {section.title()}" if section else "")
-    body = f'<div class="doc-meta"><span class="crumb">{crumb}</span><span class="dl">Download: {dl}</span></div>\n<article class="prose">\n{frag}\n</article>'
-    html_path.write_text(page(f"{title} · ISYE 671", body, html_path.relative_to(ROOT).as_posix()), encoding="utf-8")
-    return html_path
+    back = dict(NAV)[section]
+    dl = " · ".join(f'<a href="{os.path.relpath(q, html_path.parent)}" download>{html.escape(l)}</a>'
+                    for l, q in downloads_for(md_path))
+    body = (f'<p class="docbar"><a href="{rel(page_rel, back)}">← {section}</a>'
+            f'<span>Download: {dl}</span></p>\n<article class="prose">\n{frag}\n</article>')
+    html_path.write_text(page(f"{title} – ISYE 671", body, page_rel, active=section), encoding="utf-8")
 
 
-def link_for(path: str):
-    """Primary link + extra chips for one material item."""
-    p = ROOT / path
-    if not p.exists():
+def links(path: str):
+    """HTML links for one material: main link plus plain download links."""
+    q = ROOT / path
+    if not q.exists():
         sys.exit(f"Missing file referenced in build.py: {path}")
-    if p.suffix == ".md":
-        chips = [(label, q.relative_to(ROOT).as_posix()) for label, q in downloads_for(p) if label != ".md"]
-        return path[:-3] + ".html", chips
-    if p.suffix == ".ipynb":
-        return COLAB_URL + path, [("Download", path)]
-    return path, []
+    if q.suffix == ".md":
+        extra = [(l, x.relative_to(ROOT).as_posix()) for l, x in downloads_for(q) if l != "Markdown"]
+        main = path[:-3] + ".html"
+    elif q.suffix == ".ipynb":
+        extra = []
+        main = COLAB_URL + path
+    else:
+        extra, main = [], path
+    return main, extra
 
 
-def item_html(title, path, kind):
-    href, chips = link_for(path)
+def entry(title, path):
+    main, extra = links(path)
     ext = Path(path).suffix.lower()
-    badge = {".ipynb": "Colab", ".pdf": "PDF", ".pptx": "PPTX"}.get(ext, "")
-    target = ' target="_blank" rel="noopener"' if ext == ".ipynb" else ""
-    chips_html = "".join(f'<a class="chip" href="{c}" download>{l}</a>' for l, c in chips)
-    badge_html = f'<span class="badge">{badge}</span>' if badge else ""
-    return f'<li class="{kind}"><a href="{href}"{target}>{html.escape(title)}</a>{badge_html}{chips_html}</li>'
+    tgt = ' target="_blank" rel="noopener"' if ext == ".ipynb" else ""
+    tag = ""
+    ex = "".join(f' <a class="alt" href="{h}" download>{l}</a>' for l, h in extra)
+    return f'<li><a href="{main}"{tgt}>{html.escape(title)}</a>{tag}{ex}</li>'
+
+
+def ul(items):
+    return "<ul>" + "".join(entry(t, p) for t, p in items) + "</ul>" if items else '<span class="none">—</span>'
+
+
+def write(name, title, body, active, description=""):
+    (ROOT / name).write_text(page(title, body, name, description, active), encoding="utf-8")
 
 
 def build_index():
-    mods = []
-    for i, m in enumerate(MODULES, 1):
-        groups = ""
-        for key, label in (("notes", "Lecture notes"), ("labs", "Colab labs"), ("homework", "Homework")):
-            if m[key]:
-                items = "".join(item_html(t, p, key) for t, p in m[key])
-                groups += f'<div class="group"><h4>{label}</h4><ul>{items}</ul></div>'
-        mods.append(f"""<section class="module" id="m{i}">
-  <div class="module-head"><span class="num">{i:02d}</span><div><h3>{html.escape(m['title'])}</h3><p class="weeks">{m['weeks']}</p></div></div>
-  <p class="summary">{html.escape(m['summary'])}</p>
-  {groups}
-</section>""")
-
-    hw_rows = "".join(
-        f'<tr><td><a href="homework/{n}.html">Homework {n[2:]}</a></td><td>{html.escape(t)}</td>'
-        f'<td><a class="chip" href="homework/{n}.docx" download>DOCX</a></td></tr>'
-        for n, t in HOMEWORK_TOPICS.items())
-    cases = "".join(item_html(t, p, "notes") for t, p in CASE_STUDIES)
-    exercises = "".join(item_html(t, p, "notes") for t, p in EXERCISES)
     n_notes = sum(len(m["notes"]) for m in MODULES)
     n_labs = sum(len(m["labs"]) for m in MODULES)
-
+    topics = "".join(f"<li>{html.escape(m['title'])}</li>" for m in MODULES)
     body = f"""
-<section class="hero">
-  <p class="eyebrow">Graduate course · Northern Illinois University · Spring 2026</p>
-  <h1>Linear Optimization and Network Flows</h1>
-  <p class="lede">Open course materials for ISYE 671. The course covers formulating and solving linear,
-  integer, network, stochastic and large-scale optimization models, implemented in AMPL and Python on
-  Google Colab, with generative AI used as a coding co-pilot under an explicit disclosure policy.</p>
-  <p class="instructor">Instructor: Dr. Ziteng Wang, Department of Industrial and Systems Engineering</p>
-  <div class="cta">
-    <a class="btn primary" href="#modules">Browse materials</a>
-    <a class="btn" href="syllabus.html">Syllabus</a>
-    <a class="btn" href="{REPO_URL}/archive/refs/heads/{BRANCH}.zip">Download everything (.zip)</a>
-  </div>
-</section>
+<h1>Linear Optimization and Network Flows</h1>
+<p class="sub">ISYE 671 · Graduate course · Northern Illinois University · Spring 2026<br>
+Instructor: Dr. Ziteng Wang, Industrial and Systems Engineering</p>
 
-<section class="quicknav">
-  <a href="#modules"><strong>{n_notes}</strong><span>Lecture notes and slides</span></a>
-  <a href="#modules"><strong>{n_labs}</strong><span>Colab notebooks</span></a>
-  <a href="#homework"><strong>{len(HOMEWORK_TOPICS)}</strong><span>Homework assignments</span></a>
-  <a href="#project"><strong>{len(CASE_STUDIES)}</strong><span>Project case studies</span></a>
-</section>
+<p>This site shares the materials from the Spring 2026 offering of ISYE 671. Students learn to
+formulate linear, integer, network, stochastic and large-scale optimization models and to solve
+them with AMPL and Python in Google Colab. Generative AI is used as a coding assistant, with
+full disclosure required.</p>
 
-<section class="start" id="start">
-  <h2>Getting started</h2>
-  <ol>
-    <li><strong>Read the notes.</strong> Each lecture note opens as a web page with rendered math; PDF or slide versions are linked where available.</li>
-    <li><strong>Run the labs in Colab.</strong> The “Colab” links open a notebook directly from this repository. No local installation is needed.</li>
-    <li><strong>Get a free AMPL license.</strong> Request an AMPL Community Edition license at <a href="https://ampl.com/ce">ampl.com/ce</a> (or a course license at <a href="https://ampl.com/courses">ampl.com/courses</a>) and paste your UUID where a notebook says <code>YOUR-AMPL-LICENSE-UUID</code>.</li>
-  </ol>
-  <p class="textbook">Textbook: R. L. Rardin, <em>Optimization in Operations Research</em>, 2nd ed., Pearson. Background: ISYE 370 or equivalent, plus basic coding.</p>
-</section>
+<h2>What's here</h2>
+<table class="index">
+<tr><td><a href="materials.html">Materials</a></td><td>{n_notes} lecture notes and slide decks, {n_labs} Colab notebooks, in-class exercises</td></tr>
+<tr><td><a href="homework.html">Homework</a></td><td>{len(HOMEWORK_TOPICS)} assignments (solutions are not published)</td></tr>
+<tr><td><a href="project.html">Project</a></td><td>Project requirements and {len(CASE_STUDIES)} case studies</td></tr>
+<tr><td><a href="syllabus.html">Syllabus</a></td><td>Objectives, grading, schedule and AI policy</td></tr>
+</table>
 
-<section id="modules">
-  <h2>Course modules</h2>
-  <div class="modules">
-  {''.join(mods)}
-  </div>
-</section>
+<h2>Topics</h2>
+<ol class="topics">{topics}</ol>
 
-<section id="exercises" class="two-col">
-  <div>
-    <h2>In-class exercises</h2>
-    <p>Short warm-up problems used in class to show why modeling matters. Try them before opening a solver.</p>
-    <ul class="plain">{exercises}</ul>
-  </div>
-  <div id="homework">
-    <h2>Homework</h2>
-    <p>Assignments as given in Spring 2026. Several refer to exercises inside the lecture notes and labs above.
-    Homework 1 and 4 are not included. Solutions are not published.</p>
-    <table class="hw"><thead><tr><th>Assignment</th><th>Topic</th><th></th></tr></thead><tbody>{hw_rows}</tbody></table>
-  </div>
-</section>
+<h2>Running the labs</h2>
+<p>Each lab opens directly in Google Colab; nothing needs to be installed. The notebooks use AMPL,
+which needs a free license: request one at <a href="https://ampl.com/ce">ampl.com/ce</a> and paste
+the UUID where a notebook says <code>YOUR-AMPL-LICENSE-UUID</code>.</p>
 
-<section id="project">
-  <h2>Course project</h2>
-  <p>Students pick one of six case studies and deliver a model, a Colab implementation, analysis and a
-  managerial memo. See the <a href="project/project-requirements.html">project requirements</a>.</p>
-  <ul class="plain cases">{cases}</ul>
-</section>
+<h2>Textbook</h2>
+<p>R. L. Rardin, <em>Optimization in Operations Research</em>, 2nd ed., Pearson.
+Prerequisites: an undergraduate operations research course and basic programming.</p>
 
-<section id="about" class="about">
-  <h2>About these materials</h2>
-  <p>This site publishes lecture notes, labs, homework assignments and project case studies from the Spring 2026
-  offering. Homework solutions and exams are not published. Use the materials for self-study or adapt them
-  for teaching under the <a href="{REPO_URL}/blob/{BRANCH}/LICENSE">CC BY-NC-SA 4.0</a> license. To report an error,
-  open an issue on <a href="{REPO_URL}/issues">GitHub</a>.</p>
-</section>
+<p class="small">All files can be <a href="{REPO_URL}/archive/refs/heads/{BRANCH}.zip">downloaded as one zip</a>
+or browsed on <a href="{REPO_URL}">GitHub</a>. Found an error? <a href="{REPO_URL}/issues">Open an issue</a>.</p>
 """
-    (ROOT / "index.html").write_text(
-        page(SITE_TITLE, body, "index.html",
-             "Open course materials for ISYE 671 at Northern Illinois University: lecture notes, "
-             "Colab labs, homework and project case studies.", wide=True),
-        encoding="utf-8")
+    write("index.html", SITE_TITLE, body, "Home",
+          "Open course materials for ISYE 671 at Northern Illinois University: lecture notes, "
+          "Colab labs, homework and project case studies.")
+
+
+def build_materials():
+    rows = "".join(
+        f'<tr><td class="n">{i}</td><td><strong>{html.escape(m["title"])}</strong>'
+        f'<div class="when">{m["weeks"]}</div></td><td data-label="Lecture notes">{ul(m["notes"])}</td>'
+        f'<td data-label="Labs (Colab)">{ul(m["labs"])}</td></tr>'
+        for i, m in enumerate(MODULES, 1))
+    body = f"""
+<h1>Materials</h1>
+<p>Lecture notes open as web pages, with PDF or slide versions linked beside them.
+Labs open in Google Colab.</p>
+<table class="grid">
+<thead><tr><th></th><th>Topic</th><th>Lecture notes</th><th>Labs (Colab)</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+<h2>In-class exercises</h2>
+<p>Short warm-up problems from class. Try them before opening a solver.</p>
+{ul(EXERCISES)}
+"""
+    write("materials.html", "Materials – ISYE 671", body, "Materials")
+
+
+def build_homework():
+    rows = "".join(
+        f'<tr><td><a href="homework/{n}.html">Homework {n[2:]}</a></td><td>{html.escape(t)}</td>'
+        f'<td><a href="homework/{n}.docx" download>DOCX</a></td></tr>'
+        for n, t in HOMEWORK_TOPICS.items())
+    body = f"""
+<h1>Homework</h1>
+<p>Assignments as given in Spring 2026. Most point to exercises in the
+<a href="materials.html">lecture notes and labs</a>. Homework 1 and 4 are not included,
+and solutions are not published.</p>
+<table class="grid">
+<thead><tr><th>Assignment</th><th>Topic</th><th>File</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+"""
+    write("homework.html", "Homework – ISYE 671", body, "Homework")
+
+
+def build_project():
+    body = f"""
+<h1>Course project</h1>
+<p>Teams of one or two choose a case study, formulate and implement the model in Colab, analyze
+the results and write a memo for a decision maker. Details are in the
+<a href="project/project-requirements.html">project requirements</a>.</p>
+<h2>Case studies</h2>
+<ol class="cases">{"".join(entry(t, p) for t, p in CASE_STUDIES)}</ol>
+"""
+    write("project.html", "Project – ISYE 671", body, "Project")
 
 
 def main():
@@ -375,8 +384,11 @@ def main():
     for md in docs:
         render_doc(pandoc, md)
     build_index()
+    build_materials()
+    build_homework()
+    build_project()
     (ROOT / ".nojekyll").touch()
-    print(f"Built index.html and {len(docs)} document pages.")
+    print(f"Built 5 site pages and {len(docs)} document pages.")
 
 
 if __name__ == "__main__":
