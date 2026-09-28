@@ -178,7 +178,7 @@ NAV = [("Home", "index.html"), ("Materials", "materials.html"), ("Homework", "ho
        ("Project", "project.html"), ("Syllabus", "syllabus.html")]
 
 
-def page(title, body, page_path, description="", active=""):
+def page(title, body, page_path, description="", active="", hero=""):
     r = lambda p: rel(page_path, p)
     on = ' class="on"'
     nav_html = "".join(f'<a href="{r(h)}"{on if n == active else ""}>{n}</a>' for n, h in NAV)
@@ -201,17 +201,19 @@ window.MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\
 <body>
 <header class="bar">
   <div class="wrap">
-    <a class="course" href="{r('index.html')}">ISYE 671</a>
+    <a class="course" href="{r('index.html')}"><b>ISYE 671</b><span>Linear Optimization &amp; Network Flows</span></a>
     <nav>{nav_html}</nav>
   </div>
 </header>
-<main class="wrap">
+{f'<section class="hero"><div class="wrap">{hero}</div></section>' if hero else ''}
+<main class="wrap{' has-hero' if hero else ''}">
 {body}
 </main>
-<footer class="wrap foot">
-  ISYE 671 · Northern Illinois University · Spring 2026 ·
-  <a href="{REPO_URL}">Source on GitHub</a> ·
-  <a href="{REPO_URL}/blob/{BRANCH}/LICENSE">CC BY-NC-SA 4.0</a>
+<footer class="foot">
+  <div class="wrap">
+    <span>ISYE 671 · Northern Illinois University · Spring 2026 · Dr. Ziteng Wang</span>
+    <span><a href="{REPO_URL}">Source on GitHub</a> · <a href="{REPO_URL}/blob/{BRANCH}/LICENSE">CC BY-NC-SA 4.0</a></span>
+  </div>
 </footer>
 </body>
 </html>
@@ -280,101 +282,118 @@ def ul(items):
     return "<ul>" + "".join(entry(t, p) for t, p in items) + "</ul>" if items else '<span class="none">—</span>'
 
 
-def write(name, title, body, active, description=""):
-    (ROOT / name).write_text(page(title, body, name, description, active), encoding="utf-8")
+def write(name, title, body, active, description="", hero=""):
+    (ROOT / name).write_text(page(title, body, name, description, active, hero), encoding="utf-8")
+
+
+def band(title, intro):
+    return f"<h1>{html.escape(title)}</h1><p>{intro}</p>"
 
 
 def build_index():
     n_notes = sum(len(m["notes"]) for m in MODULES)
     n_labs = sum(len(m["labs"]) for m in MODULES)
-    topics = "".join(f"<li>{html.escape(m['title'])}</li>" for m in MODULES)
-    body = f"""
+    hero = f"""
+<p class="kicker">Graduate course · Northern Illinois University · Spring 2026</p>
 <h1>Linear Optimization and Network Flows</h1>
-<p class="sub">ISYE 671 · Graduate course · Northern Illinois University · Spring 2026<br>
-Instructor: Dr. Ziteng Wang, Industrial and Systems Engineering</p>
-
-<p>This site shares the materials from the Spring 2026 offering of ISYE 671. Students learn to
-formulate linear, integer, network, stochastic and large-scale optimization models and to solve
-them with AMPL and Python in Google Colab. Generative AI is used as a coding assistant, with
-full disclosure required.</p>
-
-<h2>What's here</h2>
-<table class="index">
-<tr><td><a href="materials.html">Materials</a></td><td>{n_notes} lecture notes and slide decks, {n_labs} Colab notebooks, in-class exercises</td></tr>
-<tr><td><a href="homework.html">Homework</a></td><td>{len(HOMEWORK_TOPICS)} assignments (solutions are not published)</td></tr>
-<tr><td><a href="project.html">Project</a></td><td>Project requirements and {len(CASE_STUDIES)} case studies</td></tr>
-<tr><td><a href="syllabus.html">Syllabus</a></td><td>Objectives, grading, schedule and AI policy</td></tr>
-</table>
+<p>Open materials from ISYE 671: formulating linear, integer, network, stochastic and large-scale
+optimization models, and solving them with AMPL and Python in Google Colab.</p>
+<p class="who">Dr. Ziteng Wang · Industrial and Systems Engineering</p>
+<p class="actions"><a class="btn solid" href="materials.html">Browse materials</a>
+<a class="btn" href="syllabus.html">Read the syllabus</a></p>"""
+    tiles = [
+        ("materials.html", "Materials", f"{n_notes} lecture notes and slide decks, {n_labs} Colab labs"),
+        ("homework.html", "Homework", f"{len(HOMEWORK_TOPICS)} assignments from Spring 2026"),
+        ("project.html", "Project", f"Requirements and {len(CASE_STUDIES)} case studies"),
+        ("syllabus.html", "Syllabus", "Objectives, grading, schedule, AI policy"),
+    ]
+    tiles_html = "".join(f'<a class="tile" href="{h}"><b>{t}</b><span>{d}</span></a>' for h, t, d in tiles)
+    topics = "".join(
+        f'<li><a href="materials.html#m{i}"><span class="n">{i:02d}</span>'
+        f'<span><b>{html.escape(m["title"])}</b><small>{m["weeks"]}</small></span></a></li>'
+        for i, m in enumerate(MODULES, 1))
+    body = f"""
+<div class="tiles">{tiles_html}</div>
 
 <h2>Topics</h2>
 <ol class="topics">{topics}</ol>
 
-<h2>Running the labs</h2>
-<p>Each lab opens directly in Google Colab; nothing needs to be installed. The notebooks use AMPL,
-which needs a free license: request one at <a href="https://ampl.com/ce">ampl.com/ce</a> and paste
-the UUID where a notebook says <code>YOUR-AMPL-LICENSE-UUID</code>.</p>
+<div class="split">
+  <div>
+    <h2>Running the labs</h2>
+    <p>Labs open directly in Google Colab, so nothing needs installing. They use AMPL, which needs a
+    free license: request one at <a href="https://ampl.com/ce">ampl.com/ce</a> and paste the UUID where a
+    notebook says <code>YOUR-AMPL-LICENSE-UUID</code>.</p>
+  </div>
+  <div>
+    <h2>Textbook</h2>
+    <p>R. L. Rardin, <em>Optimization in Operations Research</em>, 2nd ed., Pearson.
+    Prerequisites: an undergraduate operations research course and basic programming.</p>
+  </div>
+</div>
 
-<h2>Textbook</h2>
-<p>R. L. Rardin, <em>Optimization in Operations Research</em>, 2nd ed., Pearson.
-Prerequisites: an undergraduate operations research course and basic programming.</p>
-
-<p class="small">All files can be <a href="{REPO_URL}/archive/refs/heads/{BRANCH}.zip">downloaded as one zip</a>
-or browsed on <a href="{REPO_URL}">GitHub</a>. Found an error? <a href="{REPO_URL}/issues">Open an issue</a>.</p>
+<p class="small">Download <a href="{REPO_URL}/archive/refs/heads/{BRANCH}.zip">all files as a zip</a> or browse them on
+<a href="{REPO_URL}">GitHub</a>. Found an error? <a href="{REPO_URL}/issues">Open an issue</a>.
+Homework solutions and exams are not published.</p>
 """
     write("index.html", SITE_TITLE, body, "Home",
           "Open course materials for ISYE 671 at Northern Illinois University: lecture notes, "
-          "Colab labs, homework and project case studies.")
+          "Colab labs, homework and project case studies.", hero)
 
 
 def build_materials():
-    rows = "".join(
-        f'<tr><td class="n">{i}</td><td><strong>{html.escape(m["title"])}</strong>'
-        f'<div class="when">{m["weeks"]}</div></td><td data-label="Lecture notes">{ul(m["notes"])}</td>'
-        f'<td data-label="Labs (Colab)">{ul(m["labs"])}</td></tr>'
-        for i, m in enumerate(MODULES, 1))
-    body = f"""
-<h1>Materials</h1>
-<p>Lecture notes open as web pages, with PDF or slide versions linked beside them.
-Labs open in Google Colab.</p>
-<table class="grid">
-<thead><tr><th></th><th>Topic</th><th>Lecture notes</th><th>Labs (Colab)</th></tr></thead>
-<tbody>{rows}</tbody>
-</table>
-<h2>In-class exercises</h2>
-<p>Short warm-up problems from class. Try them before opening a solver.</p>
-{ul(EXERCISES)}
-"""
-    write("materials.html", "Materials – ISYE 671", body, "Materials")
+    blocks = []
+    for i, m in enumerate(MODULES, 1):
+        cols = f'<div><h3>Lecture notes</h3>{ul(m["notes"])}</div>'
+        if m["labs"]:
+            cols += f'<div><h3>Labs <em>open in Colab</em></h3>{ul(m["labs"])}</div>'
+        blocks.append(f"""<section class="module" id="m{i}">
+  <header><span class="n">{i:02d}</span><div><h2>{html.escape(m["title"])}</h2>
+  <p>{html.escape(m["summary"])} <span class="when">{m["weeks"]}</span></p></div></header>
+  <div class="cols">{cols}</div>
+</section>""")
+    body = "".join(blocks) + f"""
+<section class="module plain" id="exercises">
+  <header><span class="n">+</span><div><h2>In-class exercises</h2>
+  <p>Short warm-up problems from class. Try them before opening a solver.</p></div></header>
+  <div class="cols"><div>{ul(EXERCISES)}</div></div>
+</section>"""
+    write("materials.html", "Materials – ISYE 671", body, "Materials",
+          hero=band("Materials", "Lecture notes open as web pages, with PDF or slide versions beside them. "
+                                 "Labs open in Google Colab."))
 
 
 def build_homework():
     rows = "".join(
         f'<tr><td><a href="homework/{n}.html">Homework {n[2:]}</a></td><td>{html.escape(t)}</td>'
-        f'<td><a href="homework/{n}.docx" download>DOCX</a></td></tr>'
+        f'<td class="r"><a href="homework/{n}.docx" download>DOCX</a></td></tr>'
         for n, t in HOMEWORK_TOPICS.items())
     body = f"""
-<h1>Homework</h1>
-<p>Assignments as given in Spring 2026. Most point to exercises in the
-<a href="materials.html">lecture notes and labs</a>. Homework 1 and 4 are not included,
-and solutions are not published.</p>
 <table class="grid">
-<thead><tr><th>Assignment</th><th>Topic</th><th>File</th></tr></thead>
+<thead><tr><th>Assignment</th><th>Topic</th><th class="r">File</th></tr></thead>
 <tbody>{rows}</tbody>
 </table>
+<p class="small">Most assignments point to exercises in the <a href="materials.html">lecture notes and labs</a>.
+Homework 1 and 4 are not included.</p>
 """
-    write("homework.html", "Homework – ISYE 671", body, "Homework")
+    write("homework.html", "Homework – ISYE 671", body, "Homework",
+          hero=band("Homework", "Assignments as given in Spring 2026. Solutions are not published."))
 
 
 def build_project():
+    cards = "".join(
+        f'<a class="case" href="{p[:-3]}.html"><span class="n">{i}</span><b>{html.escape(t.split(": ", 1)[0])}</b>'
+        f'<span>{html.escape(t.split(": ", 1)[1])}</span></a>'
+        for i, (t, p) in enumerate(CASE_STUDIES, 1))
     body = f"""
-<h1>Course project</h1>
-<p>Teams of one or two choose a case study, formulate and implement the model in Colab, analyze
-the results and write a memo for a decision maker. Details are in the
+<p>Teams of one or two choose a case study, formulate and implement the model in Colab, analyze the
+results and write a memo for a decision maker. Deliverables, timeline and report structure are in the
 <a href="project/project-requirements.html">project requirements</a>.</p>
 <h2>Case studies</h2>
-<ol class="cases">{"".join(entry(t, p) for t, p in CASE_STUDIES)}</ol>
+<div class="cases">{cards}</div>
 """
-    write("project.html", "Project – ISYE 671", body, "Project")
+    write("project.html", "Project – ISYE 671", body, "Project",
+          hero=band("Course project", "Apply the course methods to one realistic decision problem."))
 
 
 def main():

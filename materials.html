@@ -17,28 +17,52 @@ window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\
 <body>
 <header class="bar">
   <div class="wrap">
-    <a class="course" href="index.html">ISYE 671</a>
+    <a class="course" href="index.html"><b>ISYE 671</b><span>Linear Optimization &amp; Network Flows</span></a>
     <nav><a href="index.html">Home</a><a href="materials.html" class="on">Materials</a><a href="homework.html">Homework</a><a href="project.html">Project</a><a href="syllabus.html">Syllabus</a></nav>
   </div>
 </header>
-<main class="wrap">
-
-<h1>Materials</h1>
-<p>Lecture notes open as web pages, with PDF or slide versions linked beside them.
-Labs open in Google Colab.</p>
-<table class="grid">
-<thead><tr><th></th><th>Topic</th><th>Lecture notes</th><th>Labs (Colab)</th></tr></thead>
-<tbody><tr><td class="n">1</td><td><strong>Linear optimization modeling</strong><div class="when">Weeks 3–4</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/lp-basic-models.pptx">Basic LP models (slides)</a></li><li><a href="lectures/lp-model-adaptation-scenarios.html">Model adaptation scenarios: “What if?” study guide</a></li><li><a href="lectures/optimization-with-python-and-ampl.pdf">Optimization with Python &amp; AMPL (slides)</a></li><li><a href="lectures/ampl-quick-reference.html">AMPL quick reference guide</a> <a class="alt" href="lectures/ampl-quick-reference.pdf" download>PDF</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ampl-tutorial.ipynb" target="_blank" rel="noopener">AMPL tutorial: LP with Python &amp; AMPL</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ampl-example.ipynb" target="_blank" rel="noopener">AMPL example: three ways to build a model</a></li></ul></td></tr><tr><td class="n">2</td><td><strong>Integer optimization</strong><div class="when">Weeks 5–6</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/integer-optimization.html">Integer optimization models</a> <a class="alt" href="lectures/integer-optimization.pdf" download>PDF</a></li><li><a href="lectures/swedish-steel-supplement.html">Supplement: Swedish Steel product selection</a> <a class="alt" href="lectures/swedish-steel-supplement.pdf" download>PDF</a></li><li><a href="lectures/solving-ip.html">Solving integer programs</a> <a class="alt" href="lectures/solving-ip.pdf" download>PDF</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/solving-ip-lab.ipynb" target="_blank" rel="noopener">Lab: solving integer programming models</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ip-exercises.ipynb" target="_blank" rel="noopener">Exercises: integer programming modeling</a></li></ul></td></tr><tr><td class="n">3</td><td><strong>Network flow models</strong><div class="when">Weeks 7–8</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/network-flow-models.html">Network flow models</a> <a class="alt" href="lectures/network-flow-models.pdf" download>PDF</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/network-flow-lab.ipynb" target="_blank" rel="noopener">Lab: network flow models in Python</a></li></ul></td></tr><tr><td class="n">4</td><td><strong>Advanced LP and IP models</strong><div class="when">Weeks 11–12</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/advanced-routing.html">Advanced routing models (TSP, VRP)</a></li><li><a href="lectures/ml-and-optimization.html">Machine learning and optimization</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/advanced-routing-lab.ipynb" target="_blank" rel="noopener">Lab: advanced routing</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ml-and-optimization-lab.ipynb" target="_blank" rel="noopener">Lab: machine learning and optimization</a></li></ul></td></tr><tr><td class="n">5</td><td><strong>Optimization under uncertainty</strong><div class="when">Week 13</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/stochastic-optimization.html">Stochastic optimization</a></li><li><a href="lectures/optimization-under-uncertainty.html">Optimization under uncertainty</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/uncertainty-lab.ipynb" target="_blank" rel="noopener">Lab: optimization under uncertainty</a></li></ul></td></tr><tr><td class="n">6</td><td><strong>Large-scale methods</strong><div class="when">Week 14</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/large-scale-methods.html">Large-scale optimization methods</a></li></ul></td><td data-label="Labs (Colab)"><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/large-scale-methods-lab.ipynb" target="_blank" rel="noopener">Lab: large-scale methods</a></li></ul></td></tr><tr><td class="n">7</td><td><strong>Advanced topics and next steps</strong><div class="when">Week 15</div></td><td data-label="Lecture notes"><ul><li><a href="lectures/bilevel-optimization.html">Bilevel optimization</a></li><li><a href="lectures/what-now.html">What now? From optimization to continued learning</a> <a class="alt" href="lectures/what-now-slides.pdf" download>slides PDF</a> <a class="alt" href="lectures/what-now-slides.pptx" download>slides PPTX</a></li></ul></td><td data-label="Labs (Colab)"><span class="none">—</span></td></tr></tbody>
-</table>
-<h2>In-class exercises</h2>
-<p>Short warm-up problems from class. Try them before opening a solver.</p>
-<ul><li><a href="exercises/carpenters-dilemma.html">The Carpenter’s Dilemma</a> <a class="alt" href="exercises/carpenters-dilemma.docx" download>DOCX</a></li><li><a href="exercises/orbital-payload.html">The Orbital Payload</a> <a class="alt" href="exercises/orbital-payload.docx" download>DOCX</a></li></ul>
-
+<section class="hero"><div class="wrap"><h1>Materials</h1><p>Lecture notes open as web pages, with PDF or slide versions beside them. Labs open in Google Colab.</p></div></section>
+<main class="wrap has-hero">
+<section class="module" id="m1">
+  <header><span class="n">01</span><div><h2>Linear optimization modeling</h2>
+  <p>Classic LP model families (allocation, blending, operations planning, shift scheduling) and how to implement them in AMPL from Python. <span class="when">Weeks 3–4</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/lp-basic-models.pptx">Basic LP models (slides)</a></li><li><a href="lectures/lp-model-adaptation-scenarios.html">Model adaptation scenarios: “What if?” study guide</a></li><li><a href="lectures/optimization-with-python-and-ampl.pdf">Optimization with Python &amp; AMPL (slides)</a></li><li><a href="lectures/ampl-quick-reference.html">AMPL quick reference guide</a> <a class="alt" href="lectures/ampl-quick-reference.pdf" download>PDF</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ampl-tutorial.ipynb" target="_blank" rel="noopener">AMPL tutorial: LP with Python &amp; AMPL</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ampl-example.ipynb" target="_blank" rel="noopener">AMPL example: three ways to build a model</a></li></ul></div></div>
+</section><section class="module" id="m2">
+  <header><span class="n">02</span><div><h2>Integer optimization</h2>
+  <p>Fixed charges, capital budgeting, set covering, facility location, network design and scheduling; LP relaxations, branch and bound, and solver logs. <span class="when">Weeks 5–6</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/integer-optimization.html">Integer optimization models</a> <a class="alt" href="lectures/integer-optimization.pdf" download>PDF</a></li><li><a href="lectures/swedish-steel-supplement.html">Supplement: Swedish Steel product selection</a> <a class="alt" href="lectures/swedish-steel-supplement.pdf" download>PDF</a></li><li><a href="lectures/solving-ip.html">Solving integer programs</a> <a class="alt" href="lectures/solving-ip.pdf" download>PDF</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/solving-ip-lab.ipynb" target="_blank" rel="noopener">Lab: solving integer programming models</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ip-exercises.ipynb" target="_blank" rel="noopener">Exercises: integer programming modeling</a></li></ul></div></div>
+</section><section class="module" id="m3">
+  <header><span class="n">03</span><div><h2>Network flow models</h2>
+  <p>Minimum cost network flow, max flow, shortest path, transportation, assignment and matching; total unimodularity and integrality. <span class="when">Weeks 7–8</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/network-flow-models.html">Network flow models</a> <a class="alt" href="lectures/network-flow-models.pdf" download>PDF</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/network-flow-lab.ipynb" target="_blank" rel="noopener">Lab: network flow models in Python</a></li></ul></div></div>
+</section><section class="module" id="m4">
+  <header><span class="n">04</span><div><h2>Advanced LP and IP models</h2>
+  <p>Traveling salesman and vehicle routing formulations, and the optimization models behind regression, SVMs, clustering and classification trees. <span class="when">Weeks 11–12</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/advanced-routing.html">Advanced routing models (TSP, VRP)</a></li><li><a href="lectures/ml-and-optimization.html">Machine learning and optimization</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/advanced-routing-lab.ipynb" target="_blank" rel="noopener">Lab: advanced routing</a></li><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/ml-and-optimization-lab.ipynb" target="_blank" rel="noopener">Lab: machine learning and optimization</a></li></ul></div></div>
+</section><section class="module" id="m5">
+  <header><span class="n">05</span><div><h2>Optimization under uncertainty</h2>
+  <p>Two-stage stochastic programs, VSS and EVPI, chance constraints, robust optimization and stochastic integer programs. <span class="when">Week 13</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/stochastic-optimization.html">Stochastic optimization</a></li><li><a href="lectures/optimization-under-uncertainty.html">Optimization under uncertainty</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/uncertainty-lab.ipynb" target="_blank" rel="noopener">Lab: optimization under uncertainty</a></li></ul></div></div>
+</section><section class="module" id="m6">
+  <header><span class="n">06</span><div><h2>Large-scale methods</h2>
+  <p>Column generation, Dantzig–Wolfe and Benders decomposition, and Lagrangian relaxation. <span class="when">Week 14</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/large-scale-methods.html">Large-scale optimization methods</a></li></ul></div><div><h3>Labs <em>open in Colab</em></h3><ul><li><a href="https://colab.research.google.com/github/zworie/ISYE671-Sp26/blob/main/labs/large-scale-methods-lab.ipynb" target="_blank" rel="noopener">Lab: large-scale methods</a></li></ul></div></div>
+</section><section class="module" id="m7">
+  <header><span class="n">07</span><div><h2>Advanced topics and next steps</h2>
+  <p>Bilevel optimization, and a closing lecture on where to go after this course. <span class="when">Week 15</span></p></div></header>
+  <div class="cols"><div><h3>Lecture notes</h3><ul><li><a href="lectures/bilevel-optimization.html">Bilevel optimization</a></li><li><a href="lectures/what-now.html">What now? From optimization to continued learning</a> <a class="alt" href="lectures/what-now-slides.pdf" download>slides PDF</a> <a class="alt" href="lectures/what-now-slides.pptx" download>slides PPTX</a></li></ul></div></div>
+</section>
+<section class="module plain" id="exercises">
+  <header><span class="n">+</span><div><h2>In-class exercises</h2>
+  <p>Short warm-up problems from class. Try them before opening a solver.</p></div></header>
+  <div class="cols"><div><ul><li><a href="exercises/carpenters-dilemma.html">The Carpenter’s Dilemma</a> <a class="alt" href="exercises/carpenters-dilemma.docx" download>DOCX</a></li><li><a href="exercises/orbital-payload.html">The Orbital Payload</a> <a class="alt" href="exercises/orbital-payload.docx" download>DOCX</a></li></ul></div></div>
+</section>
 </main>
-<footer class="wrap foot">
-  ISYE 671 · Northern Illinois University · Spring 2026 ·
-  <a href="https://github.com/zworie/ISYE671-Sp26">Source on GitHub</a> ·
-  <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>
+<footer class="foot">
+  <div class="wrap">
+    <span>ISYE 671 · Northern Illinois University · Spring 2026 · Dr. Ziteng Wang</span>
+    <span><a href="https://github.com/zworie/ISYE671-Sp26">Source on GitHub</a> · <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a></span>
+  </div>
 </footer>
 </body>
 </html>
