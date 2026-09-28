@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="large-scale-methods.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows">ISYE 671: Linear Optimization and Network Flows</h1>
+<h1 id="lecture-notes-large-scale-optimization-methods">Lecture Notes — Large-Scale Optimization Methods</h1>
+<p><strong>Northern Illinois University — Spring 2026</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="introduction-when-standard-solvers-are-not-enough">1. Introduction: When Standard Solvers Are Not Enough</h2>
+<p>Throughout this course, we have formulated LP, IP, and network flow models and solved them directly using AMPL with Gurobi. For problems of moderate size, this works remarkably well — modern solvers can handle LPs with hundreds of thousands of variables routinely, and well-structured sparse LPs with millions of variables are often tractable. Integer programs with thousands of binary variables frequently solve in seconds, though solution time is highly problem-dependent.</p>
+<p>However, many real-world problems have structural features that make direct solution impractical:</p>
+<ul>
+<li><strong>Too many variables to enumerate</strong>: A cutting stock problem may have thousands of feasible cutting patterns. A vehicle routing problem with 200 customers has billions of potential routes. We cannot list all possible columns upfront.</li>
+<li><strong>Block structure with linking constraints</strong>: A multi-period supply chain has independent subproblems per period, linked by inventory balance constraints. A stochastic program has independent scenarios, linked by first-stage decisions. The constraint matrix is mostly block-diagonal — almost decomposable, but not quite.</li>
+<li><strong>Complicating constraints</strong>: An otherwise easy problem (e.g., a collection of independent knapsacks) is made hard by a handful of constraints that couple all the variables. Removing those constraints would make the problem trivial.</li>
+</ul>
+<p>This lecture introduces four methods that exploit such structure:</p>
+<ol type="1">
+<li><strong>Column generation</strong> (Section 2) — an algorithm for LPs with too many variables to enumerate.</li>
+<li><strong>Dantzig-Wolfe decomposition</strong> (Section 3) — a reformulation that converts block-structured LPs with many constraints into LPs with many variables, then solves them with column generation.</li>
+<li><strong>Benders decomposition</strong> (Section 4) — the “dual” of Dantzig-Wolfe: projects out a subset of variables, replacing them with iteratively generated constraints (cuts).</li>
+<li><strong>Lagrangian relaxation</strong> (Section 5) — a general technique for obtaining bounds by moving complicating constraints into the objective function. Not a decomposition method; not limited to large-scale problems.</li>
+</ol>
+<blockquote>
+<p><strong>Connection to prior material</strong>: These methods do not replace what we have learned — they <em>build upon it</em>. Each method solves sequences of smaller LPs or IPs using the same solvers (Gurobi through AMPL) we have been using all semester. The insight is in how to break big problems into manageable pieces.</p>
+</blockquote>
+<h3 id="do-we-still-need-these-methods-the-computing-power-question">1.1 Do We Still Need These Methods? (The Computing Power Question)</h3>
+<p>Dantzig-Wolfe decomposition was published in 1960. Benders decomposition in 1962. Lagrangian relaxation gained prominence in the 1970s. These methods were developed when a “large” LP had a few hundred variables and solving it could take hours on a mainframe. Today, commercial solvers like Gurobi can handle LPs with hundreds of thousands of variables routinely, and well-structured sparse problems with millions of variables are often tractable. So a natural question arises: <strong>with modern computing power, do we still need decomposition methods?</strong></p>
+<p>The answer is emphatically <strong>yes</strong>, for several reasons:</p>
+<p><strong>Problem sizes have grown faster than computing power.</strong> Moore’s Law gave us roughly a <span class="math inline">\(10^6\)</span>-fold increase in computing speed over 50 years. But the problems we want to solve have grown even faster. A stochastic supply chain model with 1,000 scenarios, 500 products, and 200 locations generates billions of variables. An airline crew scheduling problem with 5,000 flights has more feasible crew pairings than atoms in the universe. No amount of raw computing power can enumerate these.</p>
+<p><strong>The structure is the point, not the size.</strong> Decomposition methods don’t just make big problems solvable — they make them <em>understandable</em>. A Benders decomposition of a stochastic program separates the strategic decision (“which warehouses to open”) from the operational response (“how to allocate demand in each scenario”). A Dantzig-Wolfe decomposition separates the global coordination (“how much total production”) from the local optimization (“how each factory schedules its machines”). This structural insight is valuable even when the problem <em>could</em> be solved as a single formulation.</p>
+<p><strong>Modern applications <em>require</em> decomposition.</strong> Many contemporary optimization problems are inherently distributed: different data owners control different parts of the model (e.g., hospitals in a regional health network, airlines in an alliance). Decomposition methods enable <strong>privacy-preserving optimization</strong> where each party solves its own subproblem without sharing proprietary data. The master only sees aggregated outputs.</p>
+<p><strong>Decomposition enables parallelism.</strong> Modern hardware has shifted from faster single cores to more parallel cores (GPUs, cloud computing). Decomposition methods are naturally parallel — Benders subproblems and Lagrangian subproblems can be distributed across thousands of processors. This is increasingly how the largest optimization problems are solved in practice.</p>
+<p><strong>Machine learning integration requires structure.</strong> As discussed in the ML &amp; Optimization lecture, modern approaches use ML to improve optimization (learning to branch, predicting warm starts, selecting cuts). These ML methods work best when the optimization has <em>structure</em> that ML can learn — exactly the structure that decomposition methods exploit.</p>
+<p>In short: decomposition methods are more relevant today than when they were invented. The methods themselves are timeless; what changes is the scale and context of their application.</p>
+<h3 id="how-large-can-optimization-problems-get">1.2 How Large Can Optimization Problems Get?</h3>
+<p>To appreciate why large-scale methods matter, consider the scale of real-world optimization problems:</p>
+<p><strong>Airline crew scheduling.</strong> A major airline operates 3,000–5,000 daily flights with 10,000+ crew members across multiple crew types (pilots, first officers, flight attendants). Each feasible crew schedule (a “pairing”) is a multi-day sequence of flights respecting duty-time regulations, rest requirements, base constraints, and union rules. The number of feasible pairings is astronomically large — easily <span class="math inline">\(10^{15}\)</span> or more. The optimization selects a minimum-cost subset of pairings that covers every flight exactly once. This is solved daily via column generation (each column = a crew pairing, pricing subproblem = shortest path with resource constraints). Without column generation, the problem is intractable.</p>
+<p><strong>Electricity grid unit commitment.</strong> An independent system operator (ISO) must decide which power plants to turn on (binary) and how much each produces (continuous) for each hour of the next day or week, across hundreds of generators and thousands of transmission lines. A typical day-ahead market clears a MIP with 500,000+ variables and 1,000,000+ constraints. With stochastic versions incorporating renewable energy uncertainty (wind/solar forecasts across 50–100 scenarios), the problem grows to tens of millions of variables. Benders decomposition and Lagrangian relaxation are standard tools.</p>
+<p><strong>Telecommunications network design.</strong> A telecom company must route data traffic across a network with thousands of nodes and tens of thousands of links, satisfying bandwidth demands for millions of origin-destination pairs. The multicommodity flow formulation has variables indexed by (commodity × link), easily reaching <span class="math inline">\(10^8\)</span> variables. Capacity expansion decisions (which links to upgrade) add integer variables. Dantzig-Wolfe decomposition by commodity and Lagrangian relaxation of linking capacity constraints are standard approaches.</p>
+<p><strong>Supply chain and logistics.</strong> A global retailer manages 100,000+ products across 5,000+ stores, 50+ distribution centers, and 500+ suppliers, with decisions about inventory, replenishment, transportation, and pricing over 52 weekly periods. The deterministic model alone has hundreds of millions of variables. Adding demand uncertainty with scenarios creates stochastic programs with billions of variables. These are decomposed by product, by region, or by time period.</p>
+<p><strong>Vehicle routing at scale.</strong> Amazon, UPS, and FedEx solve vehicle routing problems daily with 100,000+ packages, 10,000+ vehicles, and time windows. The number of feasible routes is combinatorially explosive. Column generation over route variables, combined with branch-and-price, is the state of the art. Even with the most powerful solvers, these problems cannot be solved as a single formulation.</p>
+<p><strong>Radiation therapy planning.</strong> As we saw in the IMRT example (Section 2.5), a realistic treatment plan involves hundreds of beam angles, each with hundreds of beamlets, delivering dose to thousands of tissue voxels. The number of feasible apertures (beamlet subsets) is exponential in the number of beamlets. Column generation selects the small number of apertures actually needed.</p>
+<p><strong>Healthcare operations.</strong> A hospital network scheduling nurses, surgeons, operating rooms, and patient admissions across 20 hospitals, 52 weeks, and multiple shift types generates integer programs with millions of binary variables. Stochastic versions incorporating patient demand uncertainty and pandemic scenarios multiply the size by 100×. Decomposition by hospital (Dantzig-Wolfe) or by scenario (Benders) is essential.</p>
+<p>The common thread: these problems are large not because someone chose to make them large, but because the underlying system <em>is</em> large — many facilities, many time periods, many products, many scenarios, many possible configurations. The structure of the real system (facilities are independent except through shared resources; scenarios are independent except through first-stage decisions; time periods are independent except through inventory) is exactly the structure that decomposition methods exploit.</p>
+<hr />
+<h2 id="column-generation">2. Column Generation</h2>
+<h3 id="the-core-idea">2.1 The Core Idea</h3>
+<p>Many optimization problems involve <strong>selecting or combining from an enormous set of candidates</strong>:</p>
+<ul>
+<li>Which <strong>cutting patterns</strong> should we use to cut raw material into requested sizes?</li>
+<li>Which <strong>beam configurations</strong> should we use in radiation therapy?</li>
+<li>Which <strong>vehicle routes</strong> should we assign to serve all customers?</li>
+<li>Which <strong>crew schedules</strong> should we assign to cover all flights?</li>
+</ul>
+<p>In each case, the number of candidates (columns/variables) is so large that we cannot enumerate them all upfront. But most candidates will not be used in the optimal solution. <strong>Column generation</strong> exploits this: start with a small subset of columns, solve the LP, and then intelligently generate only those new columns that can improve the objective.</p>
+<h3 id="the-restricted-master-problem-and-pricing">2.2 The Restricted Master Problem and Pricing</h3>
+<p>Consider an LP with far more columns than we can enumerate:</p>
+<p><span class="math display">\[\min \; c^\top x \quad \text{subject to} \quad Ax = b, \quad x \geq 0\]</span></p>
+<p>We solve a <strong>restricted master problem (RMP)</strong> that includes only a manageable subset of columns:</p>
+<p><span class="math display">\[\min \; c_B^\top x_B \quad \text{subject to} \quad A_B x_B = b, \quad x_B \geq 0\]</span></p>
+<p>After solving the RMP, we obtain <strong>dual variables</strong> <span class="math inline">\(\pi\)</span> (one per constraint). From LP optimality theory, a column <span class="math inline">\(j\)</span> not currently in the RMP can improve the objective if and only if its <strong>reduced cost</strong> is negative:</p>
+<p><span class="math display">\[\bar{c}_j = c_j - \pi^\top a_j &lt; 0\]</span></p>
+<p>The <strong>pricing subproblem</strong> searches for the column with the most negative reduced cost:</p>
+<p><span class="math display">\[\min_{j \notin B} \; c_j - \pi^\top a_j\]</span></p>
+<p>If the minimum reduced cost is non-negative, the current RMP solution is optimal for the <em>full</em> problem — even though we never enumerated all columns. If a negative reduced-cost column exists, we add it to the RMP and re-solve.</p>
+<h3 id="the-column-generation-algorithm">2.3 The Column Generation Algorithm</h3>
+<pre><code>1. Initialize: Create a feasible RMP with a small set of columns.
+2. Solve RMP: Solve the restricted master as an LP → obtain dual values π.
+3. Pricing: Solve the pricing subproblem to find the column with minimum reduced cost.
+4. Check: If minimum reduced cost ≥ 0 → STOP. Current solution is optimal.
+5. Add: Add the new column to the RMP. Return to Step 2.</code></pre>
+<p><strong>Key properties:</strong></p>
+<ul>
+<li><strong>Finite convergence</strong>: The algorithm terminates because there are finitely many extreme points, and each iteration strictly improves the objective (or terminates).</li>
+<li><strong>Efficiency</strong>: We only generate columns that are <em>needed</em> — typically a tiny fraction of all possible columns.</li>
+<li><strong>The pricing subproblem inherits problem structure</strong>: For cutting stock, pricing is a knapsack problem. For VRP, it is a shortest path with resource constraints. The structure of the pricing subproblem is what makes column generation practical.</li>
+</ul>
+<h3 id="worked-example-1-cutting-stock-problem">2.4 Worked Example 1: Cutting Stock Problem</h3>
+<p><strong>Problem</strong>: A steel mill cuts standard bars of length <span class="math inline">\(W = 100\)</span> inches into requested widths. Customer orders:</p>
+<table>
+<thead>
+<tr>
+<th>Width <span class="math inline">\(w_i\)</span></th>
+<th>Demand <span class="math inline">\(d_i\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25”</td>
+<td>40 rolls</td>
+</tr>
+<tr>
+<td>30”</td>
+<td>50 rolls</td>
+</tr>
+<tr>
+<td>45”</td>
+<td>30 rolls</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Goal</strong>: Minimize the total number of standard bars used.</p>
+<p><strong>Pattern definition</strong>: A cutting pattern <span class="math inline">\(p\)</span> is a vector <span class="math inline">\((a_{1p}, a_{2p}, a_{3p})\)</span> specifying how many pieces of each width are cut from one bar:</p>
+<p><span class="math display">\[25 a_{1p} + 30 a_{2p} + 45 a_{3p} \leq 100, \quad a_{ip} \in \mathbb{Z}_+\]</span></p>
+<p><strong>Master problem</strong>: Let <span class="math inline">\(x_p\)</span> = number of bars cut using pattern <span class="math inline">\(p\)</span>:</p>
+<p><span class="math display">\[\min \sum_{p \in P} x_p\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{p \in P} a_{ip} \, x_p \geq d_i \quad \forall \, i = 1, 2, 3 \qquad \text{(meet demand for each width)}\]</span></p>
+<p><span class="math display">\[x_p \geq 0 \quad \forall \, p\]</span></p>
+<p>The number of feasible patterns grows combinatorially with the number of widths and the bar length. For realistic instances with dozens of widths and large bar lengths, there can be millions of patterns.</p>
+<p><strong>Initial patterns</strong> (one dedicated pattern per width — always feasible):</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>25”</th>
+<th>30”</th>
+<th>45”</th>
+<th>Material used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\(p_1\)</span>: (4, 0, 0)</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+<td>100”</td>
+</tr>
+<tr>
+<td><span class="math inline">\(p_2\)</span>: (0, 3, 0)</td>
+<td>0</td>
+<td>3</td>
+<td>0</td>
+<td>90”</td>
+</tr>
+<tr>
+<td><span class="math inline">\(p_3\)</span>: (0, 0, 2)</td>
+<td>0</td>
+<td>0</td>
+<td>2</td>
+<td>90”</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pricing subproblem</strong> (knapsack): Given dual values <span class="math inline">\(\pi = (\pi_1, \pi_2, \pi_3)\)</span> from the RMP:</p>
+<p><span class="math display">\[\max \; \pi_1 a_1 + \pi_2 a_2 + \pi_3 a_3 \qquad \text{subject to} \quad 25 a_1 + 30 a_2 + 45 a_3 \leq 100, \; a_i \in \mathbb{Z}_+\]</span></p>
+<p>If the optimal value exceeds 1 (the cost of using one bar), the reduced cost of the new pattern is negative, and it enters the RMP. The algorithm iterates — typically converging in far fewer iterations than there are total patterns.</p>
+<p><em>(Full computational walkthrough is provided in the companion Colab notebook.)</em></p>
+<h3 id="worked-example-2-radiation-therapy-planning-rardin-application-13.1">2.5 Worked Example 2: Radiation Therapy Planning (Rardin Application 13.1)</h3>
+<h4 id="the-clinical-setting">The Clinical Setting</h4>
+<p>Cancer treatment with radiation therapy begins with medical imaging (CT scans) that produce cross-sectional images of the patient’s body. A physician identifies the <strong>tumor target</strong> and the surrounding <strong>healthy tissues</strong> (e.g., liver, kidneys, spinal cord, bowel). The goal: deliver enough radiation to destroy the tumor while limiting radiation to healthy tissues below safe thresholds.</p>
+<p>A linear accelerator rotates around the patient and can fire radiation beams from multiple <strong>angles</strong> (e.g., 3–7 angles around the body). Using multiple angles spreads the healthy-tissue damage across different regions while concentrating dose on the tumor where the beams overlap.</p>
+<h4 id="beamlets-apertures-and-the-multileaf-collimator">Beamlets, Apertures, and the Multileaf Collimator</h4>
+<p>Each beam from the accelerator is relatively large (roughly 10 cm × 10 cm). To achieve precise dose control, <strong>Intensity Modulated Radiation Therapy (IMRT)</strong> treats each beam as composed of many small <strong>beamlets</strong> — sub-regions of the beam that can have different intensities (roughly, different exposure times).</p>
+<p>The beamlets are not physically separate beams. Instead, intensity modulation is achieved using a <strong>multileaf collimator</strong> — a device with moving metal “leaves” (fingers) that slide in from both sides of the beam opening to create a shaped opening called an <strong>aperture</strong>. Think of it like adjustable window blinds: the leaves block some beamlets and let others through.</p>
+<p>An <strong>aperture</strong> is a specific configuration of the leaves — a subset of beamlets that are “open” (receiving radiation) at a given intensity. The total radiation delivered from one beam angle is the sum of contributions from multiple apertures, each applied for a certain duration (intensity).</p>
+<p><strong>Why are there so many apertures?</strong> Each aperture is a subset of beamlets, and a beam with 9 beamlets has <span class="math inline">\(2^9 = 512\)</span> possible subsets — but not all are physically feasible. The leaves can only slide in from the edges, so “holes” in the middle of the opening are impossible (a leaf on the left and a leaf on the right cannot leave a gap between them without covering the middle). Even with these physical constraints, the number of feasible apertures grows very rapidly with the number of beamlets. A realistic beam with 100 beamlets may have millions of feasible apertures.</p>
+<p>This is exactly the setting for column generation: we have <strong>too many candidate apertures to enumerate</strong>, but only a handful will be used in the optimal plan.</p>
+<h4 id="the-imrt-optimization-model">The IMRT Optimization Model</h4>
+<p><strong>Data</strong> (from Rardin, Table 13.1 — a small instance with 2 beam angles):</p>
+<ul>
+<li>2 beam angles, each with 9 beamlets</li>
+<li>6 tumor points (discrete points within the tumor where dose is measured)</li>
+<li>3 healthy tissues, each with 6 measurement points (18 healthy points total)</li>
+<li>Dose parameters: <span class="math inline">\(t_{i,q,k}\)</span> = dose deposited at tumor point <span class="math inline">\(i\)</span> by beamlet <span class="math inline">\(q\)</span> of angle <span class="math inline">\(k\)</span>; <span class="math inline">\(d_{i,q,k}^h\)</span> = dose at point <span class="math inline">\(i\)</span> of healthy tissue <span class="math inline">\(h\)</span> by beamlet <span class="math inline">\(q\)</span> of angle <span class="math inline">\(k\)</span></li>
+<li>Dose limits: Healthy tissue 1 <span class="math inline">\(\leq 50\)</span>, Healthy tissue 2 <span class="math inline">\(\leq 65\)</span>, Healthy tissue 3 <span class="math inline">\(\leq 70\)</span> per point</li>
+</ul>
+<p><strong>From beamlets to apertures</strong>: Once an aperture <span class="math inline">\(m\)</span> (a subset of beamlets <span class="math inline">\(Q_{m,k}\)</span>) is chosen for angle <span class="math inline">\(k\)</span>, its dose coefficients are computed by summing over the included beamlets:</p>
+<p><span class="math display">\[t_{m,k} = \sum_{q \in Q_{m,k}} \sum_{i} t_{i,q,k} \qquad \text{(total tumor dose from aperture $m$ at angle $k$)}\]</span></p>
+<p><span class="math display">\[d_{i,m,k}^h = \sum_{q \in Q_{m,k}} d_{i,q,k}^h \qquad \text{(dose to point $i$ of healthy tissue $h$)}\]</span></p>
+<p><strong>Decision variables:</strong> <span class="math inline">\(x_{m,k} \geq 0\)</span> = the intensity (exposure time) applied to aperture <span class="math inline">\(m\)</span> of angle <span class="math inline">\(k\)</span>.</p>
+<p><strong>Formulation</strong> (Rardin’s IMRT formulation):</p>
+<p><span class="math display">\[\max \; \sum_{m,k} t_{m,k} \, x_{m,k} \qquad \text{(maximize total tumor dose)}\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{m,k} d_{i,m,k}^h \, x_{m,k} \leq b^h \quad \forall \, i, \, \forall \, h \qquad \text{(healthy tissue point $i$ in tissue $h$ stays below limit)}\]</span></p>
+<p><span class="math display">\[x_{m,k} \geq 0 \quad \forall \, m, k\]</span></p>
+<p>This is an LP — continuous intensity variables, linear dose accumulation. But the number of columns (apertures) is enormous. Each column corresponds to one aperture at one angle, with its objective coefficient being the total tumor dose and its constraint coefficients being the healthy-tissue doses at each measurement point.</p>
+<h4 id="column-generation-for-imrt">Column Generation for IMRT</h4>
+<p><strong>Master problem</strong>: An LP over the currently known apertures, maximizing tumor dose subject to healthy-tissue limits.</p>
+<p><strong>Pricing subproblem</strong>: For each beam angle <span class="math inline">\(k\)</span>, find a new aperture (subset of beamlets) that would improve the objective. The key insight from Rardin: the reduced cost of an aperture is the sum of <strong>mini-reduced costs</strong> of its individual beamlets:</p>
+<p><span class="math display">\[\bar{c}_{m,k} = \sum_{q \in Q_{m,k}} \bar{c}_{q,k} \qquad \text{where} \quad \bar{c}_{q,k} = \sum_i t_{i,q,k} - \sum_{h,i} \pi_{i}^h \, d_{i,q,k}^h\]</span></p>
+<p>Here <span class="math inline">\(\pi_i^h\)</span> are the dual values on the healthy-tissue constraints. Each beamlet <span class="math inline">\(q\)</span> has a mini-reduced cost <span class="math inline">\(\bar{c}_{q,k}\)</span> that measures how “valuable” it is: high tumor dose contribution (good) minus dual-weighted healthy dose (bad). The pricing subproblem selects the subset of beamlets with positive mini-reduced costs, subject to physical aperture feasibility (no holes, no collisions).</p>
+<p><strong>Why this is different from cutting stock pricing</strong>: In cutting stock, the pricing subproblem is a knapsack — a well-defined optimization problem with a clear optimal solution and a proof of optimality. In IMRT, the pricing subproblem involves physical aperture constraints that are hard to model as a clean optimization problem. The practical approach is <strong>heuristic</strong>: select beamlets with the highest mini-reduced costs that form a physically feasible aperture. This works well because we don’t need the <em>best</em> new aperture — any aperture with a positive reduced cost will improve the solution.</p>
+<h4 id="comparison-cutting-stock-vs.-imrt">Comparison: Cutting Stock vs. IMRT</h4>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 31%" />
+<col style="width: 48%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Cutting Stock</th>
+<th>IMRT Radiation Therapy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What is a “column”?</td>
+<td>A cutting pattern (how many of each width)</td>
+<td>An aperture (which beamlets are open)</td>
+</tr>
+<tr>
+<td>Objective</td>
+<td>Minimize bars used</td>
+<td>Maximize tumor dose</td>
+</tr>
+<tr>
+<td>Constraints</td>
+<td>Meet demand for each width</td>
+<td>Healthy tissue dose limits</td>
+</tr>
+<tr>
+<td>Column generation</td>
+<td>Unlimited (any combination of widths)</td>
+<td>Restricted (physical aperture rules)</td>
+</tr>
+<tr>
+<td>Pricing subproblem</td>
+<td>Knapsack (exact, optimal)</td>
+<td>Beamlet selection (heuristic, feasible)</td>
+</tr>
+<tr>
+<td>Number of candidates</td>
+<td>Thousands</td>
+<td>Millions+</td>
+</tr>
+<tr>
+<td>Columns in optimal solution</td>
+<td>~5–10 patterns</td>
+<td>~5–15 apertures</td>
+</tr>
+</tbody>
+</table>
+<p>The same column generation framework applies to both. The difference is in the <em>pricing</em> subproblem — not in the master problem or the algorithm.</p>
+<p><em>(Full computational implementation with Rardin’s data is provided in the companion Colab notebook.)</em></p>
+<h3 id="column-generation-for-vehicle-routing">2.6 Column Generation for Vehicle Routing</h3>
+<p>Column generation is the foundation of the most effective exact methods for vehicle routing problems (from our routing lecture):</p>
+<ul>
+<li>Each <strong>column</strong> = a complete feasible route for one vehicle.</li>
+<li>The <strong>master problem</strong> = a set partitioning problem: select minimum-cost routes covering all customers.</li>
+<li>The <strong>pricing subproblem</strong> = shortest path with resource constraints: find a new route with negative reduced cost.</li>
+</ul>
+<p>This is the foundation of <strong>branch-and-price</strong> algorithms (column generation embedded within branch-and-bound for IP).</p>
+<hr />
+<h2 id="dantzig-wolfe-decomposition">3. Dantzig-Wolfe Decomposition</h2>
+<h3 id="motivation-block-structured-problems-with-too-many-rows">3.1 Motivation: Block-Structured Problems with Too Many Rows</h3>
+<p>Column generation (Section 2) is an algorithm for LPs with too many variables. But where do these “too many variables” come from in the first place?</p>
+<p>In many cases, they arise from a <strong>reformulation</strong> of a problem that originally had too many <em>constraints</em> (rows). The idea: take a large LP with block structure and many rows, and <strong>transform it</strong> into an LP with few rows but many columns — then solve it with column generation.</p>
+<h3 id="block-angular-structure">3.2 Block-Angular Structure</h3>
+<p>Consider a large LP with <strong>block-angular structure</strong>: independent subproblems linked by a few coupling constraints.</p>
+<p><span class="math display">\[\min \; c_1^\top x_1 + c_2^\top x_2 + \cdots + c_K^\top x_K\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[A_1 x_1 + A_2 x_2 + \cdots + A_K x_K = b_0 \qquad \text{(linking constraints — few rows)}\]</span></p>
+<p><span class="math display">\[D_k x_k = d_k, \; x_k \geq 0 \quad \forall \, k = 1, \ldots, K \qquad \text{(block constraints — many rows each)}\]</span></p>
+<p>The constraint matrix looks like:</p>
+<p><span class="math display">\[\begin{bmatrix} A_1 &amp; A_2 &amp; \cdots &amp; A_K \\ D_1 &amp; &amp; &amp; \\ &amp; D_2 &amp; &amp; \\ &amp; &amp; \ddots &amp; \\ &amp; &amp; &amp; D_K \end{bmatrix}\]</span></p>
+<p>The total number of rows can be enormous (sum of all block rows plus linking rows), but the blocks are <em>independent</em> except through the linking rows. Without the linking constraints, the problem would decompose into <span class="math inline">\(K\)</span> independent subproblems.</p>
+<p><strong>Where does this structure arise?</strong></p>
+<ul>
+<li><strong>Multi-period planning</strong>: Each period is a block; inventory-balance constraints link them.</li>
+<li><strong>Multi-facility production</strong>: Each facility is a block; shared resource budgets are the linking constraints.</li>
+<li><strong>Stochastic programming</strong>: Each scenario is a block; first-stage decisions link them.</li>
+</ul>
+<h3 id="the-reformulation-represent-each-block-by-its-extreme-points">3.3 The Reformulation: Represent Each Block by Its Extreme Points</h3>
+<p>The key insight is the <strong>Minkowski-Weyl theorem</strong>: any bounded polyhedron equals the convex hull of its extreme points.</p>
+<p>Let <span class="math inline">\(P_k = \{x_k : D_k x_k = d_k, \, x_k \geq 0\}\)</span> be the feasible region of block <span class="math inline">\(k\)</span>. If <span class="math inline">\(P_k\)</span> is bounded, any <span class="math inline">\(x_k \in P_k\)</span> can be written as:</p>
+<p><span class="math display">\[x_k = \sum_{j=1}^{J_k} \lambda_k^j \, v_k^j, \qquad \sum_{j=1}^{J_k} \lambda_k^j = 1, \qquad \lambda_k^j \geq 0\]</span></p>
+<p>where <span class="math inline">\(\{v_k^1, \ldots, v_k^{J_k}\}\)</span> are the extreme points of <span class="math inline">\(P_k\)</span>.</p>
+<p><strong>What this achieves</strong>: All the block constraints <span class="math inline">\(D_k x_k = d_k\)</span> (many rows) are replaced by a single <strong>convexity constraint</strong> <span class="math inline">\(\sum_j \lambda_k^j = 1\)</span> per block (one row). The many rows vanish; in their place, we get many columns (one per extreme point).</p>
+<h3 id="the-dantzig-wolfe-master-problem">3.4 The Dantzig-Wolfe Master Problem</h3>
+<p>Substituting the extreme-point representation:</p>
+<p><span class="math display">\[\min \; \sum_{k=1}^{K} \sum_{j=1}^{J_k} (c_k^\top v_k^j) \, \lambda_k^j\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{k=1}^{K} \sum_{j=1}^{J_k} (A_k v_k^j) \, \lambda_k^j = b_0 \qquad \text{(linking constraints — unchanged)}\]</span></p>
+<p><span class="math display">\[\sum_{j=1}^{J_k} \lambda_k^j = 1 \quad \forall \, k = 1, \ldots, K \qquad \text{(one convexity constraint per block)}\]</span></p>
+<p><span class="math display">\[\lambda_k^j \geq 0 \quad \forall \, k, j\]</span></p>
+<p><strong>The trade-off:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>Original LP</th>
+<th>DW Master</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rows</td>
+<td>Linking rows + all block rows (many)</td>
+<td>Linking rows + <span class="math inline">\(K\)</span> convexity rows (few)</td>
+</tr>
+<tr>
+<td>Columns</td>
+<td>Original variables (manageable)</td>
+<td>One per extreme point per block (many)</td>
+</tr>
+</tbody>
+</table>
+<p>The DW master has <strong>far fewer rows</strong> but <strong>far more columns</strong> — exactly the setting where column generation applies. The pricing subproblem for block <span class="math inline">\(k\)</span> optimizes over <span class="math inline">\(P_k\)</span> with modified costs:</p>
+<p><span class="math display">\[\min_{x_k \in P_k} \; (c_k^\top - \pi^\top A_k) x_k\]</span></p>
+<p>This is block <span class="math inline">\(k\)</span>’s own LP/IP with modified objective coefficients. The optimal <span class="math inline">\(x_k^*\)</span> is a new extreme point (column) to add to the master.</p>
+<h3 id="dw-provides-tighter-lp-bounds-for-integer-programs">3.5 DW Provides Tighter LP Bounds for Integer Programs</h3>
+<p>When the blocks contain integer variables, the DW reformulation takes convex combinations of <em>integer</em> extreme points — preserving integrality within each block. The standard LP relaxation drops integrality everywhere. This means the DW LP bound is at least as tight:</p>
+<p><span class="math display">\[z_{LP}^{\text{standard}} \leq z_{LP}^{\text{DW}} \leq z_{IP}^*\]</span></p>
+<p>This tighter bound is one of the main practical motivations for DW decomposition in integer programming (branch-and-price).</p>
+<h3 id="worked-example-multi-factory-production-with-shared-warehouse">3.6 Worked Example: Multi-Factory Production with Shared Warehouse</h3>
+<p><strong>Problem</strong>: A company operates 3 factories (F1, F2, F3), each producing three products (A, B, C). Each factory has its own machine capacity, labor capacity, and per-product production limits. All factories ship to a shared warehouse with limited storage per product. The company must also meet minimum total production targets for each product.</p>
+<p><strong>Data:</strong></p>
+<p>Production cost ($/unit):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Product A</th>
+<th>Product B</th>
+<th>Product C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>8</td>
+<td>20</td>
+<td>14</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>18</td>
+<td>7</td>
+<td>16</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>15</td>
+<td>15</td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<p>Machine hours per unit and capacity:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>A</th>
+<th>B</th>
+<th>C</th>
+<th>Capacity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>2.0</td>
+<td>3.5</td>
+<td>2.5</td>
+<td>400 hrs</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>3.0</td>
+<td>1.5</td>
+<td>3.0</td>
+<td>380 hrs</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>2.5</td>
+<td>2.5</td>
+<td>1.5</td>
+<td>420 hrs</td>
+</tr>
+</tbody>
+</table>
+<p>Labor hours per unit and capacity:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>A</th>
+<th>B</th>
+<th>C</th>
+<th>Capacity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>3.0</td>
+<td>1.5</td>
+<td>2.0</td>
+<td>450 hrs</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>1.5</td>
+<td>3.0</td>
+<td>2.5</td>
+<td>400 hrs</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>2.0</td>
+<td>2.0</td>
+<td>3.5</td>
+<td>400 hrs</td>
+</tr>
+</tbody>
+</table>
+<p>Per-product upper bounds:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>A</th>
+<th>B</th>
+<th>C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>100</td>
+<td>80</td>
+<td>70</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>70</td>
+<td>90</td>
+<td>60</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>80</td>
+<td>70</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<p>Linking constraints:</p>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Warehouse capacity</th>
+<th>Minimum total production</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>180</td>
+<td>100</td>
+</tr>
+<tr>
+<td>B</td>
+<td>170</td>
+<td>90</td>
+</tr>
+<tr>
+<td>C</td>
+<td>160</td>
+<td>80</td>
+</tr>
+</tbody>
+</table>
+<p>Note the asymmetric specialization: F1 is cheapest for A ($8), F2 for B ($7), F3 for C ($6).</p>
+<h4 id="original-formulation">Original Formulation</h4>
+<p><strong>Variables:</strong> <span class="math inline">\(x_{fp}\)</span> = units of product <span class="math inline">\(p\)</span> produced at factory <span class="math inline">\(f\)</span>.</p>
+<p><span class="math display">\[\min \; 8x_{1A} + 20x_{1B} + 14x_{1C} + 18x_{2A} + 7x_{2B} + 16x_{2C} + 15x_{3A} + 15x_{3B} + 6x_{3C}\]</span></p>
+<p><strong>Linking constraints</strong> (6 rows):</p>
+<p><span class="math display">\[x_{1A} + x_{2A} + x_{3A} \leq 180, \quad x_{1B} + x_{2B} + x_{3B} \leq 170, \quad x_{1C} + x_{2C} + x_{3C} \leq 160\]</span></p>
+<p><span class="math display">\[x_{1A} + x_{2A} + x_{3A} \geq 100, \quad x_{1B} + x_{2B} + x_{3B} \geq 90, \quad x_{1C} + x_{2C} + x_{3C} \geq 80\]</span></p>
+<p><strong>Block constraints for F1</strong> (5 rows):</p>
+<p><span class="math display">\[2.0 x_{1A} + 3.5 x_{1B} + 2.5 x_{1C} \leq 400, \quad 3.0 x_{1A} + 1.5 x_{1B} + 2.0 x_{1C} \leq 450\]</span></p>
+<p><span class="math display">\[x_{1A} \leq 100, \quad x_{1B} \leq 80, \quad x_{1C} \leq 70\]</span></p>
+<p><strong>Block constraints for F2</strong> (5 rows):</p>
+<p><span class="math display">\[3.0 x_{2A} + 1.5 x_{2B} + 3.0 x_{2C} \leq 380, \quad 1.5 x_{2A} + 3.0 x_{2B} + 2.5 x_{2C} \leq 400\]</span></p>
+<p><span class="math display">\[x_{2A} \leq 70, \quad x_{2B} \leq 90, \quad x_{2C} \leq 60\]</span></p>
+<p><strong>Block constraints for F3</strong> (5 rows):</p>
+<p><span class="math display">\[2.5 x_{3A} + 2.5 x_{3B} + 1.5 x_{3C} \leq 420, \quad 2.0 x_{3A} + 2.0 x_{3B} + 3.5 x_{3C} \leq 400\]</span></p>
+<p><span class="math display">\[x_{3A} \leq 80, \quad x_{3B} \leq 70, \quad x_{3C} \leq 100\]</span></p>
+<p><span class="math display">\[x_{fp} \geq 0 \quad \forall \, f, p\]</span></p>
+<p><strong>Total: 6 linking + 15 block = 21 rows</strong>, 9 variables. The constraint matrix has block-angular structure — the blocks <span class="math inline">\(D_1, D_2, D_3\)</span> (each <span class="math inline">\(5 \times 3\)</span>) are independent, coupled only by the 6 linking rows.</p>
+<h4 id="dantzig-wolfe-reformulation">Dantzig-Wolfe Reformulation</h4>
+<p>Let <span class="math inline">\(P_k\)</span> = the feasible production region for factory <span class="math inline">\(k\)</span> (defined by its 5 block constraints). Each <span class="math inline">\(P_k\)</span> is a bounded polyhedron with extreme points <span class="math inline">\(\{v_k^1, v_k^2, \ldots, v_k^{J_k}\}\)</span>. Any feasible <span class="math inline">\((x_{kA}, x_{kB}, x_{kC}) \in P_k\)</span> can be written as:</p>
+<p><span class="math display">\[(x_{kA}, x_{kB}, x_{kC}) = \sum_{j=1}^{J_k} \lambda_k^j \, v_k^j, \qquad \sum_{j} \lambda_k^j = 1, \quad \lambda_k^j \geq 0\]</span></p>
+<p>Substituting into the original LP, the <strong>DW master</strong> becomes:</p>
+<p><span class="math display">\[\min \; \sum_{k=1}^{3} \sum_{j=1}^{J_k} \underbrace{\left( \sum_{p} c_{kp} \, v_{kp}^j \right)}_{\text{cost of plan } j} \lambda_k^j\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{k=1}^{3} \sum_{j} v_{kA}^j \, \lambda_k^j \leq 180, \quad \sum_{k=1}^{3} \sum_{j} v_{kB}^j \, \lambda_k^j \leq 170, \quad \sum_{k=1}^{3} \sum_{j} v_{kC}^j \, \lambda_k^j \leq 160\]</span></p>
+<p><span class="math display">\[\sum_{k=1}^{3} \sum_{j} v_{kA}^j \, \lambda_k^j \geq 100, \quad \sum_{k=1}^{3} \sum_{j} v_{kB}^j \, \lambda_k^j \geq 90, \quad \sum_{k=1}^{3} \sum_{j} v_{kC}^j \, \lambda_k^j \geq 80\]</span></p>
+<p><span class="math display">\[\sum_{j=1}^{J_k} \lambda_k^j = 1 \quad \text{for } k = 1, 2, 3 \qquad \text{(convexity)}\]</span></p>
+<p><span class="math display">\[\lambda_k^j \geq 0 \quad \forall \, k, j\]</span></p>
+<p><strong>Total: 6 linking + 3 convexity = 9 rows</strong> — the 15 block constraints have vanished. Each column <span class="math inline">\((v_k^j)\)</span> represents a complete feasible production plan for factory <span class="math inline">\(k\)</span>. The number of columns can be large (one per extreme point per factory), but we generate them on demand via column generation.</p>
+<h4 id="the-pricing-subproblem">The Pricing Subproblem</h4>
+<p>Given duals <span class="math inline">\(\pi_p^{wh}\)</span> (warehouse), <span class="math inline">\(\pi_p^{min}\)</span> (min production), and <span class="math inline">\(\sigma_k\)</span> (convexity), the pricing subproblem for factory <span class="math inline">\(k\)</span> is:</p>
+<p><span class="math display">\[\min_{(x_{kA}, x_{kB}, x_{kC}) \in P_k} \; \sum_{p \in \{A,B,C\}} \left( c_{kp} - \pi_p^{wh} - \pi_p^{min} \right) x_{kp}\]</span></p>
+<p>This is factory <span class="math inline">\(k\)</span>’s own LP with <strong>modified costs</strong>. The reduced cost of the resulting column is the pricing objective minus <span class="math inline">\(\sigma_k\)</span>. If negative, the column enters the master.</p>
+<p><strong>Key insight</strong>: The master never sees factory-internal constraints. It only sees production plans and their impact on the shared warehouse and production targets. Each factory’s complexity is hidden inside its pricing subproblem.</p>
+<p><em>(Full computational implementation is provided in the companion Colab notebook.)</em></p>
+<h3 id="the-relationship-cg-and-dw">3.7 The Relationship: CG and DW</h3>
+<p><span class="math display">\[\text{Block-structured LP} \xrightarrow[\text{extreme-point representation}]{\text{DW reformulation}} \text{Master LP (few rows, many columns)} \xrightarrow{\text{solved by}} \text{Column Generation}\]</span></p>
+<p>Column generation is the <strong>algorithm</strong>. Dantzig-Wolfe decomposition is the <strong>reformulation</strong> that creates the setting where column generation is needed. Column generation can also be applied <em>directly</em> (as in cutting stock, radiation therapy) without an explicit DW reformulation — whenever the problem naturally has too many variables.</p>
+<hr />
+<h2 id="benders-decomposition">4. Benders Decomposition</h2>
+<h3 id="motivation-too-many-variables-in-one-group">4.1 Motivation: Too Many Variables in One Group</h3>
+<p>Dantzig-Wolfe decomposition handles problems with <strong>too many rows</strong> by reformulating them into problems with <strong>too many columns</strong>, then using column generation.</p>
+<p><strong>Benders decomposition</strong> addresses the opposite situation: problems with <strong>too many columns</strong> (variables) in one group. It <strong>projects out</strong> those variables, replacing them with a single new variable in the objective, bounded by iteratively generated <strong>constraints (cuts)</strong>.</p>
+<h3 id="the-dual-relationship-with-dantzig-wolfe">4.2 The Dual Relationship with Dantzig-Wolfe</h3>
+<p>DW and Benders are two sides of the same coin:</p>
+<ul>
+<li><strong>DW</strong> generates <em>columns</em> (extreme points of subproblem polyhedra) and adds them to the master.</li>
+<li><strong>Benders</strong> generates <em>cuts</em> (from dual extreme points of subproblem polyhedra) and adds them to the master.</li>
+</ul>
+<p>Applying DW to the <em>dual</em> of an LP yields the same algorithm as applying Benders to the <em>primal</em>. The choice depends on which perspective gives better structure.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>Dantzig-Wolfe</th>
+<th>Benders</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starts with problem having</td>
+<td>Too many rows</td>
+<td>Too many columns</td>
+</tr>
+<tr>
+<td>Reformulates into</td>
+<td>Too many columns</td>
+<td>Too many rows</td>
+</tr>
+<tr>
+<td>Generates</td>
+<td>Columns (primal extreme points)</td>
+<td>Cuts (dual extreme points)</td>
+</tr>
+<tr>
+<td>Master shrinks in</td>
+<td>Rows</td>
+<td>Columns</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-setting-complicating-variables">4.3 The Setting: Complicating Variables</h3>
+<p>Consider an LP partitioned into <strong>complicating variables</strong> <span class="math inline">\(x\)</span> and <strong>easy variables</strong> <span class="math inline">\(y\)</span>:</p>
+<p><span class="math display">\[\min \; c^\top x + q^\top y \quad \text{s.t.} \quad Ax = b, \; Tx + Wy = h, \; x, y \geq 0\]</span></p>
+<p>Once <span class="math inline">\(x\)</span> is <strong>fixed</strong>, the remaining problem in <span class="math inline">\(y\)</span> is easy to solve (and may decompose into independent pieces). The idea: represent the <em>effect</em> of <span class="math inline">\(y\)</span> on the objective as a function of <span class="math inline">\(x\)</span>, then optimize over <span class="math inline">\(x\)</span> directly.</p>
+<h3 id="the-benders-approach">4.4 The Benders Approach</h3>
+<p><strong>Subproblem</strong>: For fixed <span class="math inline">\(\hat{x}\)</span>, solve:</p>
+<p><span class="math display">\[Q(\hat{x}) = \min_{y} \; q^\top y \quad \text{s.t.} \quad Wy = h - T\hat{x}, \; y \geq 0\]</span></p>
+<p>By LP duality: <span class="math inline">\(Q(\hat{x}) = \max_{\lambda} \; (h - T\hat{x})^\top \lambda\)</span> subject to <span class="math inline">\(W^\top \lambda \leq q\)</span>.</p>
+<p>The dual feasible region <span class="math inline">\(\{\lambda : W^\top \lambda \leq q\}\)</span> does not depend on <span class="math inline">\(\hat{x}\)</span>. So <span class="math inline">\(Q(x)\)</span> is a piecewise-linear convex function of <span class="math inline">\(x\)</span> — the maximum of finitely many linear functions, one per dual extreme point.</p>
+<p><strong>Master problem</strong>: Approximate <span class="math inline">\(Q(x)\)</span> using a variable <span class="math inline">\(\theta\)</span> and linear cuts:</p>
+<p><span class="math display">\[\min \; c^\top x + \theta \quad \text{s.t.} \quad Ax = b, \; x \geq 0, \; \theta \geq (h - Tx)^\top \lambda^{(k)} \; \forall k\]</span></p>
+<p>Each cut corresponds to a dual solution <span class="math inline">\(\lambda^{(k)}\)</span> obtained from solving a subproblem.</p>
+<h3 id="the-benders-algorithm">4.5 The Benders Algorithm</h3>
+<pre><code>1. Initialize: Solve master with no cuts → obtain x⁰. Set LB = master objective.
+2. Subproblem: Fix x = x⁰, solve the subproblem → obtain dual λ* and cost Q(x⁰).
+   - If infeasible: add a feasibility cut, return to Step 1.
+   - If feasible: continue.
+3. Upper bound: UB = c&#39;x⁰ + Q(x⁰).
+4. Check: If UB - LB &lt; ε → STOP (optimal).
+5. Cut: Add optimality cut θ ≥ (h - Tx)&#39;λ* to the master.
+6. Re-solve master → new x, new LB. Return to Step 2.</code></pre>
+<p><strong>Convergence</strong>: Finite — there are finitely many dual extreme points, and each cut eliminates the current solution.</p>
+<h3 id="natural-application-two-stage-stochastic-programming">4.6 Natural Application: Two-Stage Stochastic Programming</h3>
+<p>Benders decomposition is the natural algorithm for two-stage stochastic programs (from the Optimization under Uncertainty lecture):</p>
+<p><span class="math display">\[\min \; c^\top x + \sum_{s=1}^{S} p_s \, q_s^\top y_s \quad \text{s.t.} \quad Ax = b, \; T_s x + W y_s = h_s \; \forall s, \; x, y_s \geq 0\]</span></p>
+<p>The first-stage variables <span class="math inline">\(x\)</span> are the complicating variables. Once <span class="math inline">\(x\)</span> is fixed, the <span class="math inline">\(S\)</span> scenario subproblems in <span class="math inline">\(y_s\)</span> are <strong>independent</strong> and can be solved in parallel. Each generates a cut. In the stochastic programming literature, this is called the <strong>L-shaped method</strong>.</p>
+<p><strong>Advantages over the extensive form:</strong></p>
+<ul>
+<li>The master has only <span class="math inline">\(x\)</span> variables plus <span class="math inline">\(\theta_s\)</span> per scenario (small).</li>
+<li>The <span class="math inline">\(S\)</span> subproblems are independent and parallelizable.</li>
+<li>Only cuts that are <em>active at optimality</em> are generated — far fewer than the number of scenarios.</li>
+</ul>
+<h3 id="worked-example-emergency-supply-pre-positioning">4.7 Worked Example: Emergency Supply Pre-Positioning</h3>
+<p><strong>Problem</strong> (from the Optimization under Uncertainty lecture): A disaster relief agency must pre-position supply kits at 3 warehouses before hurricane season. After a hurricane, kits are shipped to 3 affected zones. Unmet demand costs $500/kit (penalty); unused kits have $50 salvage value. Pre-positioning costs $200/kit. Each warehouse can hold up to 500 kits.</p>
+<p><strong>Data:</strong></p>
+<p>Shipping cost ($/kit):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Zone A</th>
+<th>Zone B</th>
+<th>Zone C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W1</td>
+<td>20</td>
+<td>40</td>
+<td>60</td>
+</tr>
+<tr>
+<td>W2</td>
+<td>50</td>
+<td>15</td>
+<td>35</td>
+</tr>
+<tr>
+<td>W3</td>
+<td>45</td>
+<td>30</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<p>Demand scenarios:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Zone A</th>
+<th>Zone B</th>
+<th>Zone C</th>
+<th>Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cat-1 (mild)</td>
+<td>100</td>
+<td>80</td>
+<td>50</td>
+<td>0.40</td>
+</tr>
+<tr>
+<td>Cat-3 (moderate)</td>
+<td>300</td>
+<td>200</td>
+<td>150</td>
+<td>0.35</td>
+</tr>
+<tr>
+<td>Cat-5 (severe)</td>
+<td>500</td>
+<td>400</td>
+<td>350</td>
+<td>0.15</td>
+</tr>
+<tr>
+<td>None</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0.10</td>
+</tr>
+</tbody>
+</table>
+<h4 id="extensive-form-original-formulation">Extensive Form (Original Formulation)</h4>
+<p><strong>Complicating variables</strong> (first stage): <span class="math inline">\(x_w\)</span> = kits pre-positioned at warehouse <span class="math inline">\(w\)</span>.</p>
+<p><strong>Easy variables</strong> (second stage, per scenario <span class="math inline">\(s\)</span>): <span class="math inline">\(y_{wz}^s\)</span> = kits shipped from <span class="math inline">\(w\)</span> to zone <span class="math inline">\(z\)</span>; <span class="math inline">\(u_z^s\)</span> = shortfall at zone <span class="math inline">\(z\)</span>; <span class="math inline">\(v_w^s\)</span> = unused kits at warehouse <span class="math inline">\(w\)</span>.</p>
+<p><span class="math display">\[\min \; 200(x_1 + x_2 + x_3) + \sum_{s} p_s \left[ \sum_{w,z} c_{wz} \, y_{wz}^s + 500 \sum_z u_z^s - 50 \sum_w v_w^s \right]\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[x_w \leq 500 \quad \forall \, w \qquad \text{(warehouse capacity)}\]</span></p>
+<p><span class="math display">\[\sum_z y_{wz}^s + v_w^s = x_w \quad \forall \, w, s \qquad \text{(warehouse balance — links stages)}\]</span></p>
+<p><span class="math display">\[\sum_w y_{wz}^s + u_z^s = d_z^s \quad \forall \, z, s \qquad \text{(zone demand)}\]</span></p>
+<p><span class="math display">\[x_w, y_{wz}^s, u_z^s, v_w^s \geq 0\]</span></p>
+<p><strong>Size</strong>: 3 first-stage variables + <span class="math inline">\(4 \times (9 + 3 + 3) = 60\)</span> second-stage variables = <strong>63 variables</strong>. 3 capacity + <span class="math inline">\(4 \times (3 + 3) = 24\)</span> second-stage constraints = <strong>27 constraints</strong>. This is small enough to solve directly, but the structure illustrates Benders perfectly.</p>
+<p><strong>Key observation</strong>: Once the first-stage decisions <span class="math inline">\(x = (x_1, x_2, x_3)\)</span> are <strong>fixed</strong>, the 4 scenario subproblems are <strong>completely independent</strong> — each is a small transportation LP. This is the two-stage structure that Benders exploits.</p>
+<h4 id="benders-master-problem">Benders Master Problem</h4>
+<p>Replace the 60 second-stage variables with 4 approximation variables <span class="math inline">\(\theta_s\)</span> (one per scenario):</p>
+<p><span class="math display">\[\min \; 200(x_1 + x_2 + x_3) + \sum_{s} p_s \, \theta_s\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[x_w \leq 500 \quad \forall \, w\]</span></p>
+<p><span class="math display">\[\theta_s \geq \alpha_s^{(k)} + \beta_{s,1}^{(k)} x_1 + \beta_{s,2}^{(k)} x_2 + \beta_{s,3}^{(k)} x_3 \quad \forall \, s, \; k = 1, \ldots, K \qquad \text{(Benders cuts)}\]</span></p>
+<p><span class="math display">\[x_w \geq 0, \quad \theta_s \text{ free}\]</span></p>
+<p><strong>Size</strong>: 3 + 4 = <strong>7 variables</strong>, 3 capacity + <span class="math inline">\(4K\)</span> cuts = <strong>3 + 4K constraints</strong> (grows with iterations, not with problem size). Initially (<span class="math inline">\(K = 0\)</span>), the master has no cuts and will set <span class="math inline">\(\theta_s = -\infty\)</span> (or a large negative lower bound), choosing <span class="math inline">\(x_w = 0\)</span>. Each iteration adds 4 cuts (one per scenario).</p>
+<h4 id="benders-subproblem-for-scenario-s">Benders Subproblem (for scenario <span class="math inline">\(s\)</span>)</h4>
+<p>Given fixed <span class="math inline">\(\hat{x} = (\hat{x}_1, \hat{x}_2, \hat{x}_3)\)</span> from the master:</p>
+<p><span class="math display">\[Q_s(\hat{x}) = \min \; \sum_{w,z} c_{wz} \, y_{wz} + 500 \sum_z u_z - 50 \sum_w v_w\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_z y_{wz} + v_w = \hat{x}_w \quad \forall \, w \qquad \text{(warehouse balance)}\]</span></p>
+<p><span class="math display">\[\sum_w y_{wz} + u_z = d_z^s \quad \forall \, z \qquad \text{(zone demand)}\]</span></p>
+<p><span class="math display">\[y_{wz}, u_z, v_w \geq 0\]</span></p>
+<p>This is a transportation LP with 15 variables and 6 constraints. Its <strong>dual</strong> has variables <span class="math inline">\(\lambda_w\)</span> (warehouse balance duals) and <span class="math inline">\(\mu_z\)</span> (zone demand duals).</p>
+<h4 id="cut-generation">Cut Generation</h4>
+<p>From the dual solution <span class="math inline">\((\lambda_w^*, \mu_z^*)\)</span> of the subproblem, the Benders optimality cut is:</p>
+<p><span class="math display">\[\theta_s \geq \underbrace{\left[ Q_s(\hat{x}) - \sum_w \lambda_w^* \hat{x}_w \right]}_{\alpha_s} + \underbrace{\lambda_1^*}_{\ \beta_{s,1}} x_1 + \underbrace{\lambda_2^*}_{\beta_{s,2}} x_2 + \underbrace{\lambda_3^*}_{\beta_{s,3}} x_3\]</span></p>
+<p><strong>Interpretation</strong>: The dual <span class="math inline">\(\lambda_w^*\)</span> measures the marginal value of an additional pre-positioned kit at warehouse <span class="math inline">\(w\)</span> in scenario <span class="math inline">\(s\)</span>. The cut says: the recourse cost in scenario <span class="math inline">\(s\)</span> is at least a linear function of the pre-positioning quantities, with slopes given by the warehouse duals.</p>
+<h4 id="the-benders-iteration">The Benders Iteration</h4>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Iteration</th>
+<th>Master decides</th>
+<th>Subproblems compute</th>
+<th>Cuts added</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><span class="math inline">\(\hat{x} = (0, 0, 0)\)</span> (no cuts yet)</td>
+<td><span class="math inline">\(Q_s(0)\)</span> for each <span class="math inline">\(s\)</span> — all demand unmet, heavy penalties</td>
+<td>4 cuts forcing <span class="math inline">\(\theta_s\)</span> up</td>
+</tr>
+<tr>
+<td>2</td>
+<td><span class="math inline">\(\hat{x}\)</span> increases (master sees penalty costs)</td>
+<td><span class="math inline">\(Q_s(\hat{x})\)</span> — some demand met, less penalty</td>
+<td>4 more cuts refining the approximation</td>
+</tr>
+<tr>
+<td>…</td>
+<td><span class="math inline">\(\hat{x}\)</span> converges</td>
+<td>Subproblem costs stabilize</td>
+<td>Cuts tighten until UB ≈ LB</td>
+</tr>
+</tbody>
+</table>
+<p>The lower bound (master objective) increases with each cut. The upper bound (<span class="math inline">\(200 \sum_w \hat{x}_w + \sum_s p_s Q_s(\hat{x})\)</span>) is the true cost of the current <span class="math inline">\(\hat{x}\)</span>. Convergence occurs when the gap closes.</p>
+<p><strong>Why Benders helps here</strong>: The extensive form has 63 variables and 27 constraints. For a realistic version with 50 warehouses, 100 zones, and 500 scenarios, the extensive form would have <span class="math inline">\(3 \times 50 + 500 \times (50 \times 100 + 100 + 50) = 2{,}575{,}150\)</span> variables. The Benders master would still have only <span class="math inline">\(50 + 500 = 550\)</span> variables, with 500 independent subproblems solvable in parallel.</p>
+<p><em>(Full Benders implementation with convergence tracking is provided in the companion Colab notebook.)</em></p>
+<hr />
+<h2 id="lagrangian-relaxation">5. Lagrangian Relaxation</h2>
+<h3 id="a-fundamentally-different-approach">5.1 A Fundamentally Different Approach</h3>
+<p>The three methods above — column generation, DW decomposition, and Benders decomposition — are all <strong>exact methods</strong>: they converge to the optimal LP solution (or provide exact LP bounds for IP). They exploit specific structural features (too many variables, block structure, two-stage structure).</p>
+<p><strong>Lagrangian relaxation</strong> is fundamentally different in several ways:</p>
+<ul>
+<li>It is <strong>not a decomposition method</strong> — though decomposition may arise as a byproduct.</li>
+<li>It is <strong>not an exact solution method</strong> — it produces <em>bounds</em>, not optimal solutions.</li>
+<li>It is <strong>not limited to large-scale problems</strong> — it applies whenever a problem has “complicating” constraints, regardless of size.</li>
+<li>It works for <strong>LP, IP, nonconvex problems, and beyond</strong> — unlike the decomposition methods, which require LP substructure.</li>
+</ul>
+<p>The core idea: some constraints make a problem hard. Moving them into the objective as <strong>penalties</strong> creates a relaxed problem that is easier to solve — and whose optimal value provides a bound on the original problem.</p>
+<h3 id="what-makes-a-constraint-complicating">5.2 What Makes a Constraint “Complicating”?</h3>
+<p>Consider the IP:</p>
+<p><span class="math display">\[z^* = \min \; c^\top x \quad \text{s.t.} \quad Ax \leq b, \; Dx \leq e, \; x \in \mathbb{Z}_+^n\]</span></p>
+<p>The constraints <span class="math inline">\(Ax \leq b\)</span> are <strong>complicating</strong> if removing them would make the problem significantly easier. Specifically:</p>
+<ul>
+<li><strong>They link variables from different subproblems</strong>: A shared budget across facilities, a total demand constraint across plants, a coupling constraint between time periods.</li>
+<li><strong>Removing them induces decomposition</strong>: Without <span class="math inline">\(Ax \leq b\)</span>, the remaining problem <span class="math inline">\(\{Dx \leq e, \, x \in \mathbb{Z}_+\}\)</span> decomposes into independent blocks, or becomes a well-known tractable problem (knapsack, network flow, assignment).</li>
+<li><strong>They prevent the use of efficient algorithms</strong>: The easy constraints <span class="math inline">\(Dx \leq e\)</span> have special structure (e.g., totally unimodular, network structure) that is disrupted by the complicating constraints.</li>
+</ul>
+<p>Importantly, “complicating” is relative to the rest of the problem. A constraint that is complicating in one formulation may be easy in another.</p>
+<h3 id="the-lagrangian-relaxation">5.3 The Lagrangian Relaxation</h3>
+<p>For any vector of <strong>Lagrange multipliers</strong> <span class="math inline">\(\mu \geq 0\)</span>, the <strong>Lagrangian relaxation</strong> is:</p>
+<p><span class="math display">\[L(\mu) = \min_{x} \; c^\top x + \mu^\top (Ax - b) \quad \text{s.t.} \quad Dx \leq e, \; x \in \mathbb{Z}_+^n\]</span></p>
+<p>The complicating constraints <span class="math inline">\(Ax \leq b\)</span> have been moved into the objective as penalties. The multiplier <span class="math inline">\(\mu_i\)</span> controls how harshly violation of constraint <span class="math inline">\(i\)</span> is penalized.</p>
+<p><strong>Key properties:</strong></p>
+<ol type="1">
+<li><p><strong><span class="math inline">\(L(\mu)\)</span> is a valid lower bound</strong>: <span class="math inline">\(L(\mu) \leq z^*\)</span> for all <span class="math inline">\(\mu \geq 0\)</span>. Any feasible solution to the original problem satisfies <span class="math inline">\(Ax \leq b\)</span>, so the penalty <span class="math inline">\(\mu^\top(Ax - b) \leq 0\)</span>, making the Lagrangian objective no larger than the true cost.</p></li>
+<li><p><strong>Often tighter than the LP relaxation</strong>: The Lagrangian preserves integrality (<span class="math inline">\(x \in \mathbb{Z}_+\)</span>) and the easy constraints (<span class="math inline">\(Dx \leq e\)</span>), while only relaxing the complicating constraints. The LP relaxation drops <em>both</em> integrality and replaces <span class="math inline">\(Ax \leq b\)</span> with a weaker continuous formulation.</p></li>
+<li><p><strong>The relaxed problem may decompose</strong>: If <span class="math inline">\(Dx \leq e\)</span> is block-diagonal (e.g., per-plant constraints), then with <span class="math inline">\(Ax \leq b\)</span> removed, the Lagrangian problem decomposes into independent subproblems. But this decomposition is a <em>consequence</em>, not a requirement — Lagrangian relaxation is useful even when the relaxed problem does not decompose.</p></li>
+<li><p><strong>Works for non-LP problems</strong>: Unlike CG, DW, and Benders, Lagrangian relaxation does not require LP structure. It applies to IPs, MIPs, nonlinear programs, and any problem where some constraints can be penalized.</p></li>
+</ol>
+<h3 id="the-lagrangian-dual-and-subgradient-optimization">5.4 The Lagrangian Dual and Subgradient Optimization</h3>
+<p>The tightest bound is obtained by solving the <strong>Lagrangian dual</strong>:</p>
+<p><span class="math display">\[z_{LD} = \max_{\mu \geq 0} \; L(\mu)\]</span></p>
+<p>Since <span class="math inline">\(L(\mu)\)</span> is a pointwise minimum of linear functions in <span class="math inline">\(\mu\)</span>, it is <strong>concave</strong> — even for non-convex original problems. The standard algorithm for solving the Lagrangian dual is <strong>subgradient optimization</strong>:</p>
+<pre><code>1. Initialize: Choose μ⁰ ≥ 0. Set best LB = -∞.
+2. Solve Lagrangian: Compute L(μᵗ) → obtain solution x*.
+3. Update bound: LB = max(LB, L(μᵗ)).
+4. Subgradient: g = Ax* - b.
+5. Step size: αₜ = λₜ(z_UB - L(μᵗ)) / ‖g‖²
+6. Update: μᵢᵗ⁺¹ = max(0, μᵢᵗ + αₜ gᵢ)
+7. Return to Step 2.</code></pre>
+<p>The step size uses a known upper bound <span class="math inline">\(z_{UB}\)</span> (from a heuristic) and a parameter <span class="math inline">\(\lambda_t \in (0, 2]\)</span> that is halved periodically without improvement.</p>
+<h3 id="from-bounds-to-feasible-solutions">5.5 From Bounds to Feasible Solutions</h3>
+<p>The Lagrangian solution <span class="math inline">\(x^*\)</span> typically violates the complicating constraints <span class="math inline">\(Ax \leq b\)</span>. To get a feasible solution:</p>
+<ul>
+<li><strong>Heuristic repair</strong>: Adjust <span class="math inline">\(x^*\)</span> to satisfy <span class="math inline">\(Ax \leq b\)</span> (e.g., reduce production at some plants to meet a shared budget).</li>
+<li><strong>Primal recovery</strong>: Use the sequence of Lagrangian solutions to construct feasible solutions via convex combination or rounding.</li>
+</ul>
+<p>The gap between the best feasible solution (upper bound) and the Lagrangian dual (lower bound) provides a <strong>quality guarantee</strong>.</p>
+<h3 id="worked-example-multi-plant-production">5.6 Worked Example: Multi-Plant Production</h3>
+<p><strong>Problem</strong>: Five plants produce a common product. Each plant <span class="math inline">\(i\)</span> has production cost <span class="math inline">\(c_i\)</span>, capacity <span class="math inline">\(u_i\)</span>, and fixed setup cost <span class="math inline">\(f_i\)</span>. Total demand is <span class="math inline">\(D = 400\)</span> units. All plants share a raw material budget of <span class="math inline">\(B = 1{,}600\)</span> units, where plant <span class="math inline">\(i\)</span> uses <span class="math inline">\(r_i\)</span> units per unit produced.</p>
+<table>
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 20%" />
+<col style="width: 23%" />
+<col style="width: 20%" />
+<col style="width: 26%" />
+</colgroup>
+<thead>
+<tr>
+<th>Plant</th>
+<th>Unit cost <span class="math inline">\(c_i\)</span></th>
+<th>Setup cost <span class="math inline">\(f_i\)</span></th>
+<th>Capacity <span class="math inline">\(u_i\)</span></th>
+<th>Material/unit <span class="math inline">\(r_i\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td>10</td>
+<td>1,500</td>
+<td>140</td>
+<td>5</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>16</td>
+<td>1,200</td>
+<td>100</td>
+<td>3</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>12</td>
+<td>1,800</td>
+<td>120</td>
+<td>6</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>20</td>
+<td>900</td>
+<td>110</td>
+<td>2</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>8</td>
+<td>1,400</td>
+<td>130</td>
+<td>7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Complicating constraints</strong>: Demand (<span class="math inline">\(\sum_i x_i \geq D\)</span>) and budget (<span class="math inline">\(\sum_i r_i x_i \leq B\)</span>) — these link all plants.</p>
+<p><strong>Easy constraints</strong>: Per-plant capacity (<span class="math inline">\(0 \leq x_i \leq u_i z_i\)</span>, <span class="math inline">\(z_i \in \{0,1\}\)</span>) — independent by plant.</p>
+<p><strong>Lagrangian relaxation</strong> (relax demand and budget): For multipliers <span class="math inline">\(\mu_1 \geq 0\)</span> (demand) and <span class="math inline">\(\mu_2 \geq 0\)</span> (budget):</p>
+<p><span class="math display">\[L(\mu_1, \mu_2) = \min_{x, z} \sum_{i=1}^{5} \left[ (c_i + \mu_2 r_i - \mu_1) x_i + f_i z_i \right] + \mu_1 D - \mu_2 B\]</span></p>
+<p>subject to: <span class="math inline">\(0 \leq x_i \leq u_i z_i, \; z_i \in \{0, 1\} \quad \forall \, i\)</span></p>
+<p>This <strong>decomposes</strong> into 5 independent subproblems, one per plant. Each is trivial: the modified unit cost is <span class="math inline">\(\tilde{c}_i = c_i + \mu_2 r_i - \mu_1\)</span>. If <span class="math inline">\(\tilde{c}_i &lt; 0\)</span> and <span class="math inline">\(|\tilde{c}_i| \cdot u_i &gt; f_i\)</span>, open plant <span class="math inline">\(i\)</span> at full capacity. Otherwise, close it.</p>
+<p><strong>Why Lagrangian outperforms LP relaxation here</strong>: The LP relaxation allows fractional <span class="math inline">\(z_i\)</span> (e.g., <span class="math inline">\(z_i = 0.6\)</span>), paying only 60% of the setup cost. The Lagrangian subproblems preserve the binary nature of <span class="math inline">\(z_i\)</span> — each plant is either fully open or fully closed — giving a tighter bound. The high setup costs ($900–$1,800) create a meaningful LP-IP gap that the Lagrangian bound partially closes.</p>
+<p><em>(Full subgradient implementation with convergence plots comparing LP relaxation and Lagrangian bounds is provided in the companion Colab notebook.)</em></p>
+<hr />
+<h2 id="comparing-the-four-methods">6. Comparing the Four Methods</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>Column Generation</th>
+<th>Dantzig-Wolfe</th>
+<th>Benders</th>
+<th>Lagrangian Relaxation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nature</strong></td>
+<td>Algorithm</td>
+<td>Reformulation + CG</td>
+<td>Algorithm</td>
+<td>Relaxation + bound</td>
+</tr>
+<tr>
+<td><strong>Structural need</strong></td>
+<td>Too many variables</td>
+<td>Block structure, too many rows</td>
+<td>Complicating variables (two-stage)</td>
+<td>Complicating constraints</td>
+</tr>
+<tr>
+<td><strong>What it generates</strong></td>
+<td>Columns (variables)</td>
+<td>Extreme-point columns</td>
+<td>Cuts (constraints)</td>
+<td>Bounds via multiplier updates</td>
+</tr>
+<tr>
+<td><strong>Exactness</strong></td>
+<td>Exact (LP)</td>
+<td>Exact (LP); tighter bounds for IP</td>
+<td>Exact (LP)</td>
+<td>Bound only; heuristic for feasible solution</td>
+</tr>
+<tr>
+<td><strong>Subproblem</strong></td>
+<td>Pricing (inherits application structure)</td>
+<td>Block LP/IP (one per block)</td>
+<td>Recourse LP (one per scenario)</td>
+<td>Relaxed problem (may decompose)</td>
+</tr>
+<tr>
+<td><strong>Scope</strong></td>
+<td>LP with many candidates</td>
+<td>Block-angular LP/IP</td>
+<td>Two-stage LP/MIP</td>
+<td>Any problem with complicating constraints</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-to-use-which-method">When to use which method</h3>
+<p><strong>Column generation</strong>: The problem naturally has too many candidate variables (patterns, routes, schedules, beams) but a manageable number of constraints. You can solve the pricing subproblem efficiently.</p>
+<p><strong>Dantzig-Wolfe decomposition</strong>: The problem has block-angular structure with many constraints that can be absorbed into block subproblems. The linking constraints are few. You want an exact LP solution or tighter IP bounds. <em>Use CG to solve the DW master.</em></p>
+<p><strong>Benders decomposition</strong>: The problem has a natural two-stage or master-subproblem partition. Once the complicating variables are fixed, the remaining problem is easy (and may decompose). The second stage must be an LP for classical Benders.</p>
+<p><strong>Lagrangian relaxation</strong>: The problem has complicating constraints that, when removed, make it much easier. You want strong bounds quickly. The problem may be IP, nonconvex, or otherwise hard. Lagrangian is the most general method but produces bounds, not exact solutions.</p>
+<hr />
+<h2 id="implementation-considerations">7. Implementation Considerations</h2>
+<h3 id="warm-starting">7.1 Warm Starting</h3>
+<p>All four methods solve sequences of related LPs or IPs. Modern solvers like Gurobi support <strong>warm starting</strong>:</p>
+<pre><code>option gurobi_options &#39;warmstart=1&#39;;</code></pre>
+<h3 id="parallel-computation">7.2 Parallel Computation</h3>
+<p>Both Benders and Lagrangian relaxation involve solving <strong>independent subproblems</strong> per iteration. These can be solved in parallel — a major advantage for problems with many scenarios or blocks.</p>
+<h3 id="practical-solver-support">7.3 Practical Solver Support</h3>
+<p>Gurobi natively supports <strong>lazy constraints</strong> (Benders cuts via callbacks) and <strong>column generation</strong> through its column-wise modeling API. For this course, we implement the algorithms explicitly in Python/AMPL to understand the mechanics.</p>
+<hr />
+<h2 id="exercises">8. Exercises</h2>
+<p><strong>Exercise 1 (Column Generation — Cutting Stock)</strong>. A steel mill cuts standard bars of length 12 meters into requested lengths: 3m (demand: 80), 5m (demand: 60), and 7m (demand: 40). (a) Enumerate all feasible cutting patterns. How many are there? (b) Formulate the cutting stock master LP. (c) Implement column generation in AMPL/Python: start with three single-width patterns, solve the RMP, solve the pricing knapsack, and iterate until optimal. Report the optimal number of bars, the patterns used, and the number of iterations. (d) Round the LP solution to obtain an integer solution. What is the optimality gap?</p>
+<p><strong>Exercise 2 (Benders — Stochastic Facility Location)</strong>. A company must decide which of 3 potential warehouses to open (first-stage binary) to serve demand across 5 scenarios (second-stage continuous allocation). (Use the stochastic facility location data from the Optimization under Uncertainty notebook.) (a) Formulate as a two-stage stochastic IP. What is the master problem? What are the subproblems? (b) Implement Benders decomposition. Track and plot the lower and upper bounds over iterations. (c) Compare the number of iterations and total solve time to solving the extensive form directly.</p>
+<p><strong>Exercise 3 (Lagrangian Relaxation — Bound Quality)</strong>. Consider the multi-plant production problem from Section 5.6 with 5 plants (data given in the section). (a) Solve the full IP directly in AMPL to obtain the optimal cost. (b) Implement subgradient optimization relaxing <strong>both</strong> the demand and budget constraints. Run 20 iterations and plot the lower bound. (c) Now implement a variant relaxing <strong>only</strong> the demand constraint (keeping the budget constraint in the subproblem). Run 20 iterations and plot the lower bound on the same figure. (d) Which relaxation gives a tighter bound? Explain why in terms of what information the subproblem retains.</p>
+<p><strong>Exercise 4 (Conceptual)</strong>. For each of the following problems, identify which large-scale method (column generation, Dantzig-Wolfe, Benders, or Lagrangian relaxation) is most appropriate and explain why: - (a) Scheduling airline crews to cover 500 flights, where each crew has work-time and rest regulations. - (b) Designing a supply chain network (facility locations) under 200 demand scenarios. - (c) A multi-factory production system where each factory has complex internal scheduling, and all factories share a single raw material supplier with limited capacity. - (d) A portfolio optimization problem with a cardinality constraint (at most 20 stocks), where the cardinality constraint makes the problem NP-hard but removing it gives a simple QP.</p>
+<p><strong>Exercise 5 (Benders — Extended Emergency Supply)</strong>. Extend the emergency supply pre-positioning problem from Section 4.7 by adding 2 more warehouses and 2 more zones, and increasing to 6 scenarios. Implement Benders decomposition for this larger instance. (a) How many iterations are needed compared to the 3-warehouse, 4-scenario case? (b) Compare the Benders solve time to the extensive form solve time. At what problem size does Benders become faster?</p>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Rardin, R.L. <em>Optimization in Operations Research</em>, 2nd edition. Chapter 15 (large-scale methods).</li>
+<li>Gilmore, P.C. and Gomory, R.E. “A linear programming approach to the cutting-stock problem.” <em>Operations Research</em>, 9(6):849–859, 1961.</li>
+<li>Dantzig, G.B. and Wolfe, P. “Decomposition principle for linear programs.” <em>Operations Research</em>, 8(1):101–111, 1960.</li>
+<li>Benders, J.F. “Partitioning procedures for solving mixed-variables programming problems.” <em>Numerische Mathematik</em>, 4:238–252, 1962.</li>
+<li>Fisher, M.L. “The Lagrangian relaxation method for solving integer programming problems.” <em>Management Science</em>, 27(1):1–18, 1981.</li>
+<li>Desrosiers, J. and Lübbecke, M. “Branch-price-and-cut algorithms.” In <em>Wiley Encyclopedia of Operations Research and Management Science</em>, 2011.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

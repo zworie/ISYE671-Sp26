@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 6: Large-Scale LP/IP · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-6-large-scale-lp-ip.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-6-large-scale-lpip">Case Study 6: Large-Scale LP/IP</h1>
+<h2 id="airline-crew-scheduling-via-column-generation">Airline Crew Scheduling via Column Generation</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>MidwestAir is a regional airline operating a hub-and-spoke network centered at Chicago O’Hare (ORD). The airline operates 40 daily flight legs across 6 spoke cities in the upper Midwest. Each flight leg requires a crew (a captain and first officer operating as a unit). MidwestAir needs to construct <strong>crew pairings</strong> — sequences of flight legs that begin and end at the crew base (ORD) within a single duty day — such that every flight leg is covered by exactly one pairing, while minimizing total crew cost.</p>
+<p>This is a classic <strong>set covering</strong> problem that, in its natural formulation, has a very large number of variables (one per feasible pairing). You will use <strong>column generation</strong> to solve the LP relaxation efficiently, and then obtain an integer solution.</p>
+<hr />
+<h2 id="problem-data">Problem Data</h2>
+<h3 id="crew-base">Crew Base</h3>
+<p>All crews are based at ORD. Every pairing must begin with a flight departing ORD and end with a flight arriving at ORD, all within one duty day.</p>
+<h3 id="spoke-cities">Spoke Cities</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Code</th>
+<th>City</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">MKE</td>
+<td>Milwaukee</td>
+</tr>
+<tr>
+<td style="text-align: center;">MSN</td>
+<td>Madison</td>
+</tr>
+<tr>
+<td style="text-align: center;">STL</td>
+<td>St. Louis</td>
+</tr>
+<tr>
+<td style="text-align: center;">IND</td>
+<td>Indianapolis</td>
+</tr>
+<tr>
+<td style="text-align: center;">DSM</td>
+<td>Des Moines</td>
+</tr>
+<tr>
+<td style="text-align: center;">PIA</td>
+<td>Peoria</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flight-schedule">Flight Schedule</h3>
+<p>MidwestAir operates 40 daily flight legs. All times are Central Time.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 5%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Flt</th>
+<th style="text-align: center;">From</th>
+<th style="text-align: center;">To</th>
+<th style="text-align: center;">Depart</th>
+<th style="text-align: center;">Arrive</th>
+<th></th>
+<th style="text-align: center;">Flt</th>
+<th style="text-align: center;">From</th>
+<th style="text-align: center;">To</th>
+<th style="text-align: center;">Depart</th>
+<th style="text-align: center;">Arrive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">101</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">6:30</td>
+<td style="text-align: center;">7:15</td>
+<td></td>
+<td style="text-align: center;">102</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">8:45</td>
+</tr>
+<tr>
+<td style="text-align: center;">103</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">10:00</td>
+<td style="text-align: center;">10:45</td>
+<td></td>
+<td style="text-align: center;">104</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">11:30</td>
+<td style="text-align: center;">12:15</td>
+</tr>
+<tr>
+<td style="text-align: center;">105</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">14:00</td>
+<td style="text-align: center;">14:45</td>
+<td></td>
+<td style="text-align: center;">106</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">15:30</td>
+<td style="text-align: center;">16:15</td>
+</tr>
+<tr>
+<td style="text-align: center;">107</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">18:00</td>
+<td style="text-align: center;">18:45</td>
+<td></td>
+<td style="text-align: center;">108</td>
+<td style="text-align: center;">MKE</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">19:30</td>
+<td style="text-align: center;">20:15</td>
+</tr>
+<tr>
+<td style="text-align: center;">201</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">7:00</td>
+<td style="text-align: center;">7:40</td>
+<td></td>
+<td style="text-align: center;">202</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">8:30</td>
+<td style="text-align: center;">9:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">203</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">11:40</td>
+<td></td>
+<td style="text-align: center;">204</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">12:30</td>
+<td style="text-align: center;">13:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">205</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">15:00</td>
+<td style="text-align: center;">15:40</td>
+<td></td>
+<td style="text-align: center;">206</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">16:30</td>
+<td style="text-align: center;">17:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">207</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">19:00</td>
+<td style="text-align: center;">19:40</td>
+<td></td>
+<td style="text-align: center;">208</td>
+<td style="text-align: center;">MSN</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">20:30</td>
+<td style="text-align: center;">21:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">301</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">6:30</td>
+<td style="text-align: center;">7:45</td>
+<td></td>
+<td style="text-align: center;">302</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">8:30</td>
+<td style="text-align: center;">9:45</td>
+</tr>
+<tr>
+<td style="text-align: center;">303</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">12:15</td>
+<td></td>
+<td style="text-align: center;">304</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">13:00</td>
+<td style="text-align: center;">14:15</td>
+</tr>
+<tr>
+<td style="text-align: center;">305</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">15:30</td>
+<td style="text-align: center;">16:45</td>
+<td></td>
+<td style="text-align: center;">306</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">17:30</td>
+<td style="text-align: center;">18:45</td>
+</tr>
+<tr>
+<td style="text-align: center;">307</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">19:30</td>
+<td style="text-align: center;">20:45</td>
+<td></td>
+<td style="text-align: center;">308</td>
+<td style="text-align: center;">STL</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">21:30</td>
+<td style="text-align: center;">22:45</td>
+</tr>
+<tr>
+<td style="text-align: center;">401</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">7:00</td>
+<td style="text-align: center;">8:05</td>
+<td></td>
+<td style="text-align: center;">402</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">10:00</td>
+</tr>
+<tr>
+<td style="text-align: center;">403</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">13:05</td>
+<td></td>
+<td style="text-align: center;">404</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">14:00</td>
+<td style="text-align: center;">15:00</td>
+</tr>
+<tr>
+<td style="text-align: center;">405</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">17:00</td>
+<td style="text-align: center;">18:05</td>
+<td></td>
+<td style="text-align: center;">406</td>
+<td style="text-align: center;">IND</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">19:00</td>
+<td style="text-align: center;">20:00</td>
+</tr>
+<tr>
+<td style="text-align: center;">501</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">7:00</td>
+<td style="text-align: center;">8:20</td>
+<td></td>
+<td style="text-align: center;">502</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">9:15</td>
+<td style="text-align: center;">10:30</td>
+</tr>
+<tr>
+<td style="text-align: center;">503</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">13:20</td>
+<td></td>
+<td style="text-align: center;">504</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">14:15</td>
+<td style="text-align: center;">15:30</td>
+</tr>
+<tr>
+<td style="text-align: center;">505</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">17:30</td>
+<td style="text-align: center;">18:50</td>
+<td></td>
+<td style="text-align: center;">506</td>
+<td style="text-align: center;">DSM</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">19:45</td>
+<td style="text-align: center;">21:00</td>
+</tr>
+<tr>
+<td style="text-align: center;">601</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">8:40</td>
+<td></td>
+<td style="text-align: center;">602</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">9:30</td>
+<td style="text-align: center;">10:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">603</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">13:00</td>
+<td style="text-align: center;">13:40</td>
+<td></td>
+<td style="text-align: center;">604</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">14:30</td>
+<td style="text-align: center;">15:10</td>
+</tr>
+<tr>
+<td style="text-align: center;">605</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">18:00</td>
+<td style="text-align: center;">18:40</td>
+<td></td>
+<td style="text-align: center;">606</td>
+<td style="text-align: center;">PIA</td>
+<td style="text-align: center;">ORD</td>
+<td style="text-align: center;">19:30</td>
+<td style="text-align: center;">20:10</td>
+</tr>
+</tbody>
+</table>
+<h3 id="crew-rules-simplified">Crew Rules (Simplified)</h3>
+<p>A <strong>feasible pairing</strong> is a sequence of flight legs satisfying:</p>
+<ol type="1">
+<li><p><strong>Base rule</strong>: The pairing begins with a flight departing ORD and ends with a flight arriving at ORD.</p></li>
+<li><p><strong>Connection time</strong>: Between consecutive flight legs, the minimum sit time is <strong>30 minutes</strong> and the maximum sit time is <strong>3 hours</strong> (at any city, including ORD).</p></li>
+<li><p><strong>Duty period</strong>: A duty period begins 45 minutes before the first departure and ends 15 minutes after the last arrival. Total duty time must not exceed <strong>12 hours</strong>.</p></li>
+<li><p><strong>Flight time limit</strong>: Total flight time (block time) within the pairing cannot exceed <strong>8 hours</strong>.</p></li>
+<li><p><strong>Maximum legs</strong>: A pairing contains at most <strong>4 flight legs</strong>.</p></li>
+</ol>
+<p>There are no multi-day pairings and no deadheading in this simplified version.</p>
+<h3 id="cost-structure">Cost Structure</h3>
+<p>The cost of a pairing is:</p>
+<p><span class="math display">\[\text{Pairing Cost} = \max\left(\text{Flight Time Pay},\ \text{Daily Guarantee}\right) + \text{Per Diem}\]</span></p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flight time pay</td>
+<td>$300 per flight hour</td>
+</tr>
+<tr>
+<td>Daily guarantee</td>
+<td>$1,100 per duty day</td>
+</tr>
+<tr>
+<td>Per diem</td>
+<td>$2.00 per hour of duty time</td>
+</tr>
+</tbody>
+</table>
+<p>A crew is paid the <strong>greater of</strong> flight time pay or the daily guarantee, plus per diem for the full duty period.</p>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-problem-structure-and-formulation">Part 1: Problem Structure and Formulation</h3>
+<ol type="1">
+<li><p><strong>Master problem</strong>: Formulate the <strong>set covering</strong> master problem. Let <span class="math inline">\(\mathcal{P}\)</span> be the set of all feasible pairings, <span class="math inline">\(x_p \in \{0,1\}\)</span> for each pairing, <span class="math inline">\(a_{fp} = 1\)</span> if pairing <span class="math inline">\(p\)</span> covers flight <span class="math inline">\(f\)</span>, and <span class="math inline">\(c_p\)</span> the cost of pairing <span class="math inline">\(p\)</span>. Write the formulation.</p></li>
+<li><p><strong>Problem scale</strong>: How many feasible pairings could exist? Explain why column generation is useful even though enumeration may be possible for this smaller instance.</p></li>
+<li><p><strong>Column generation framework</strong>: Describe:</p>
+<ul>
+<li>What is the <strong>restricted master problem (RMP)</strong>?</li>
+<li>What is the <strong>pricing subproblem</strong>? Given dual values <span class="math inline">\(\pi_f\)</span> from the RMP, define the reduced cost of a pairing and explain how to find the pairing with the most negative reduced cost.</li>
+<li>When does the algorithm terminate?</li>
+</ul></li>
+</ol>
+<h3 id="part-2-implementation">Part 2: Implementation</h3>
+<p>Implement the column generation algorithm in a Google Colab notebook. Use AMPL/Gurobi for the RMP and Python for pairing generation.</p>
+<ol type="1">
+<li><p><strong>Enumerate all feasible pairings</strong>: With 40 flights, 6 cities, and max 4 legs per pairing, full enumeration is tractable. Write a Python function that generates all feasible pairings by exploring sequences of flights that satisfy the crew rules. Report how many feasible pairings exist.</p></li>
+<li><p><strong>Initial columns</strong>: Start the RMP with simple 2-leg out-and-back pairings (one outbound + one return for each city pair). Add artificial variables with cost $100,000 for any uncovered flights.</p></li>
+<li><p><strong>Column generation loop</strong>: Implement the loop:</p>
+<ul>
+<li>Solve the RMP LP relaxation.</li>
+<li>Extract dual values <span class="math inline">\(\pi_f\)</span>.</li>
+<li>From the enumerated pairing pool, find the pairing with the most negative reduced cost.</li>
+<li>Add it to the RMP.</li>
+<li>Repeat until no negative reduced cost exists.</li>
+<li>Log the objective value and column count at each iteration.</li>
+</ul></li>
+<li><p><strong>Convergence plot</strong>: Create a plot of the RMP objective value vs. iteration number.</p></li>
+</ol>
+<h3 id="part-3-integer-solution-and-analysis">Part 3: Integer Solution and Analysis</h3>
+<ol type="1">
+<li><p><strong>IP solution</strong>: After column generation converges, solve the final RMP as an integer program (binary <span class="math inline">\(x_p\)</span>). Report the LP and IP objectives, the LP-IP gap, and the number of pairings used.</p></li>
+<li><p><strong>Solution details</strong>: For each pairing in the integer solution, list the flight sequence, flight time, duty time, and cost.</p></li>
+<li><p><strong>Crew utilization</strong>: What is the average number of legs per pairing? What is the average crew utilization (flight time / duty time)?</p></li>
+<li><p><strong>Comparison with full enumeration</strong>: Solve the set covering IP using the complete set of enumerated pairings (without column generation). Compare the objective and solve time to the column generation approach. Discuss the trade-off.</p></li>
+<li><p><strong>Executive summary</strong>: Write a 1-page summary for MidwestAir’s VP of Flight Operations covering the recommended crew schedule, total daily crew cost, and key efficiency metrics.</p></li>
+</ol>
+<hr />
+<h2 id="hints-and-guidance">Hints and Guidance</h2>
+<ul>
+<li><strong>Start with 2-leg pairings</strong>: The simplest pairings are out-and-back (ORD → city → ORD). These cover most flights and give you a working initial RMP quickly.</li>
+<li><strong>Enumeration approach</strong>: Use a depth-first search that builds pairing sequences leg by leg, pruning whenever a connection is infeasible (wrong city, sit time out of range, duty/flight time exceeded, too many legs). This keeps the enumeration manageable.</li>
+<li><strong>Pairing cost</strong>: Compute flight time in hours by summing (arrival − departure) for each leg. Duty time = (last arrival + 15 min) − (first departure − 45 min). Pay = max(300 × flight_hours, 1100) + 2.00 × duty_hours.</li>
+<li><strong>Adding columns in AMPL</strong>: You can rebuild the RMP data each iteration by writing new data, or use AMPL’s programmatic interface to add columns incrementally.</li>
+</ul>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown) covering the master problem, subproblem, and column generation framework.</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with the enumeration code, column generation implementation, convergence plot, IP solution, analysis, and executive summary.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

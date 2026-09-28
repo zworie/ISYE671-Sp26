@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 1: Linear Programming · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-1-linear-programming.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-1-linear-programming">Case Study 1: Linear Programming</h1>
+<h2 id="regional-hospital-system-staffing-and-resource-planning">Regional Hospital System Staffing and Resource Planning</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>Prairie Health Partners (PHP) operates a network of four hospitals across northern Illinois. As the newly hired Director of Operations Analytics, you have been asked to develop a comprehensive quarterly staffing and resource allocation plan for the upcoming quarter (Q4: October–December).</p>
+<p>The health system is under financial pressure: reimbursement rates from government payers have declined, labor costs have risen, and the board has mandated a 6% reduction in operating costs compared to Q3 while maintaining quality-of-care metrics. Your task is to formulate and solve a linear programming model that determines optimal staffing levels, patient routing preferences, and resource utilization across all four facilities.</p>
+<hr />
+<h2 id="system-description">System Description</h2>
+<h3 id="facilities">Facilities</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+</colgroup>
+<thead>
+<tr>
+<th>Hospital</th>
+<th>Location</th>
+<th style="text-align: center;">Licensed Beds</th>
+<th style="text-align: center;">Operating Rooms</th>
+<th style="text-align: center;">ICU Beds</th>
+<th style="text-align: center;">ED Bays</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prairie Central Medical Center (PCMC)</td>
+<td>DeKalb</td>
+<td style="text-align: center;">320</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td>Kishwaukee Community Hospital (KCH)</td>
+<td>Sycamore</td>
+<td style="text-align: center;">180</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">16</td>
+</tr>
+<tr>
+<td>Heartland Regional Hospital (HRH)</td>
+<td>Rochelle</td>
+<td style="text-align: center;">140</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">12</td>
+</tr>
+<tr>
+<td>Valley View Medical Center (VVMC)</td>
+<td>Dixon</td>
+<td style="text-align: center;">200</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">20</td>
+</tr>
+</tbody>
+</table>
+<h3 id="staffing-categories">Staffing Categories</h3>
+<p>PHP employs staff in six categories, each with different cost structures and scheduling constraints:</p>
+<table>
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+<col style="width: 13%" />
+</colgroup>
+<thead>
+<tr>
+<th>Category</th>
+<th style="text-align: center;">Abbreviation</th>
+<th style="text-align: center;">Avg. Hourly Cost (Regular)</th>
+<th style="text-align: center;">Overtime Multiplier</th>
+<th style="text-align: left;">Min. Staff Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registered Nurses</td>
+<td style="text-align: center;">RN</td>
+<td style="text-align: center;">$42</td>
+<td style="text-align: center;">1.5×</td>
+<td style="text-align: left;">1 per 4 patients (med-surg), 1 per 2 (ICU)</td>
+</tr>
+<tr>
+<td>Licensed Practical Nurses</td>
+<td style="text-align: center;">LPN</td>
+<td style="text-align: center;">$28</td>
+<td style="text-align: center;">1.5×</td>
+<td style="text-align: left;">1 per 8 patients (med-surg only)</td>
+</tr>
+<tr>
+<td>Certified Nursing Assistants</td>
+<td style="text-align: center;">CNA</td>
+<td style="text-align: center;">$18</td>
+<td style="text-align: center;">1.5×</td>
+<td style="text-align: left;">1 per 10 patients (med-surg)</td>
+</tr>
+<tr>
+<td>Physicians (Hospitalists)</td>
+<td style="text-align: center;">MD</td>
+<td style="text-align: center;">$125</td>
+<td style="text-align: center;">N/A (salaried)</td>
+<td style="text-align: left;">1 per 15 patients</td>
+</tr>
+<tr>
+<td>Surgical Technicians</td>
+<td style="text-align: center;">ST</td>
+<td style="text-align: center;">$35</td>
+<td style="text-align: center;">1.5×</td>
+<td style="text-align: left;">2 per operating room in use</td>
+</tr>
+<tr>
+<td>Respiratory Therapists</td>
+<td style="text-align: center;">RT</td>
+<td style="text-align: center;">$38</td>
+<td style="text-align: center;">1.5×</td>
+<td style="text-align: left;">1 per 6 ICU patients</td>
+</tr>
+</tbody>
+</table>
+<p>Each staff member works 36 hours per week (three 12-hour shifts). Overtime is permitted up to 12 additional hours per week per employee. Each facility currently has the following full-time equivalent (FTE) staff:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th style="text-align: center;">PCMC</th>
+<th style="text-align: center;">KCH</th>
+<th style="text-align: center;">HRH</th>
+<th style="text-align: center;">VVMC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RN</td>
+<td style="text-align: center;">260</td>
+<td style="text-align: center;">130</td>
+<td style="text-align: center;">95</td>
+<td style="text-align: center;">155</td>
+</tr>
+<tr>
+<td>LPN</td>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">50</td>
+</tr>
+<tr>
+<td>CNA</td>
+<td style="text-align: center;">100</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">60</td>
+</tr>
+<tr>
+<td>MD</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">16</td>
+</tr>
+<tr>
+<td>ST</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">18</td>
+</tr>
+<tr>
+<td>RT</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">10</td>
+</tr>
+</tbody>
+</table>
+<p>Hiring new FTEs costs $5,000 per person (recruitment, onboarding, training), and laying off staff costs $8,000 per person (severance, unemployment insurance costs). Both hiring and layoff decisions apply for the entire quarter. In addition, PHP can bring in travel nurses (RN only) at $85/hour with no overtime limit, but travel nurse contracts require a minimum commitment of 360 hours over the quarter.</p>
+<h3 id="patient-demand">Patient Demand</h3>
+<p>Patient volumes are forecasted by service line for each hospital. The table below shows <strong>average daily census</strong> (ADC) by service line for Q4:</p>
+<table>
+<thead>
+<tr>
+<th>Service Line</th>
+<th style="text-align: center;">PCMC</th>
+<th style="text-align: center;">KCH</th>
+<th style="text-align: center;">HRH</th>
+<th style="text-align: center;">VVMC</th>
+<th style="text-align: center;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Medical-Surgical (Med-Surg)</td>
+<td style="text-align: center;">185</td>
+<td style="text-align: center;">95</td>
+<td style="text-align: center;">70</td>
+<td style="text-align: center;">110</td>
+<td style="text-align: center;">460</td>
+</tr>
+<tr>
+<td>ICU / Critical Care</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">9</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: center;">72</td>
+</tr>
+<tr>
+<td>Surgical (inpatient, post-op)</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">119</td>
+</tr>
+<tr>
+<td>Emergency Department (daily visits)</td>
+<td style="text-align: center;">210</td>
+<td style="text-align: center;">95</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">115</td>
+<td style="text-align: center;">485</td>
+</tr>
+<tr>
+<td>Outpatient Surgery (daily cases)</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">41</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Important notes on demand:</strong></p>
+<ul>
+<li>Up to 15% of Med-Surg and Surgical patients can be <strong>redirected</strong> between hospitals (patient steering through referral networks), but ICU and ED patients cannot be redirected.</li>
+<li>Patient redirection incurs a transportation/coordination cost of $120 per patient-day redirected.</li>
+<li>Seasonal flu surge: In December, ICU and ED volumes are expected to increase by 20% above the ADC shown.</li>
+</ul>
+<h3 id="operating-room-scheduling">Operating Room Scheduling</h3>
+<p>Each operating room can support a maximum of 4 surgical cases per day (8-hour block schedule, average 2 hours per case including turnover). Inpatient surgeries require 1 OR-day per surgical patient admission on average. Outpatient surgeries require 0.5 OR-days per case.</p>
+<h3 id="revenue-and-cost-structure">Revenue and Cost Structure</h3>
+<p>Average <strong>daily revenue per patient</strong> by service line:</p>
+<table>
+<thead>
+<tr>
+<th>Service Line</th>
+<th style="text-align: center;">Revenue per Patient-Day</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Med-Surg</td>
+<td style="text-align: center;">$2,800</td>
+</tr>
+<tr>
+<td>ICU</td>
+<td style="text-align: center;">$6,500</td>
+</tr>
+<tr>
+<td>Surgical</td>
+<td style="text-align: center;">$4,200</td>
+</tr>
+<tr>
+<td>ED Visit</td>
+<td style="text-align: center;">$1,400</td>
+</tr>
+<tr>
+<td>Outpatient Surgery Case</td>
+<td style="text-align: center;">$3,600</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Operating costs</strong> (non-labor, per patient-day): Med-Surg $950, ICU $2,400, Surgical $1,500, ED $600, Outpatient Surgery $1,200 per case.</p>
+<h3 id="quality-constraints">Quality Constraints</h3>
+<p>PHP must maintain the following quality thresholds to keep accreditation and payer contracts:</p>
+<ol type="1">
+<li><strong>Bed occupancy</strong> must not exceed 90% at any facility in any month.</li>
+<li><strong>Nurse-to-patient ratios</strong> (RN) must meet the minimums specified above at all times.</li>
+<li><strong>ICU occupancy</strong> must not exceed 85%.</li>
+<li><strong>Average ED wait time proxy</strong>: the ratio of ED daily visits to ED bays must not exceed 12 at any facility.</li>
+</ol>
+<h3 id="q3-operating-cost-baseline">Q3 Operating Cost Baseline</h3>
+<p>Total Q3 labor costs across all facilities were $48.2 million. Total Q3 non-labor operating costs were $31.5 million. The board requires <strong>total Q4 operating costs</strong> (labor + non-labor + hiring/layoff + redirection + travel nurse costs) to be at most 94% of Q3 total operating costs.</p>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-model-formulation">Part 1: Model Formulation</h3>
+<p>Formulate a linear programming model for this problem. Your formulation must include:</p>
+<ol type="1">
+<li><p><strong>Decision variables</strong>: Define all decision variables clearly, including their indices and domains. You will need to make decisions about staffing levels (hiring, layoffs, overtime, travel nurses), patient redirection volumes, and potentially which service lines to prioritize at each facility.</p></li>
+<li><p><strong>Objective function</strong>: Construct an appropriate objective. Consider whether you should maximize profit, minimize cost, or use a different objective. Justify your choice.</p></li>
+<li><p><strong>Constraints</strong>: Formulate all constraints, including:</p>
+<ul>
+<li>Staffing ratio requirements by service line</li>
+<li>Bed capacity and occupancy limits</li>
+<li>OR capacity constraints</li>
+<li>Budget/cost reduction mandate</li>
+<li>Overtime limits</li>
+<li>Travel nurse minimum commitment</li>
+<li>Patient redirection limits</li>
+<li>December surge adjustments</li>
+<li>Non-negativity and any other bound constraints</li>
+</ul></li>
+<li><p><strong>Assumptions</strong>: State clearly any assumptions you make to keep the model linear and tractable. Where data is ambiguous or incomplete, document your assumption and justify it.</p></li>
+</ol>
+<h3 id="part-2-implementation-and-solution">Part 2: Implementation and Solution</h3>
+<p>Implement your model in AMPL using Gurobi as the solver in a Google Colab notebook. Your implementation should:</p>
+<ol type="1">
+<li>Use separate <code>.mod</code> and <code>.dat</code> structures (can be embedded in notebook cells using <code>%%writefile</code> or AMPL string commands).</li>
+<li>Solve the model and report the optimal objective value.</li>
+<li>Present the solution in clear, well-formatted tables showing:
+<ul>
+<li>Recommended staffing levels (hires, layoffs, overtime hours, travel nurses) by facility</li>
+<li>Patient redirection plan (which patients move, from where to where, how many)</li>
+<li>Facility utilization rates (beds, ORs, ICU)</li>
+<li>Total cost breakdown by category</li>
+</ul></li>
+</ol>
+<h3 id="part-3-analysis-and-recommendations">Part 3: Analysis and Recommendations</h3>
+<ol type="1">
+<li><p><strong>Binding constraints</strong>: Identify which constraints are binding at optimality. What do these tell management about system bottlenecks?</p></li>
+<li><p><strong>Scenario analysis</strong>: Solve the model under the following alternative scenarios and compare results:</p>
+<ul>
+<li><em>Scenario A</em>: The December flu surge is 30% instead of 20%.</li>
+<li><em>Scenario B</em>: Travel nurses are unavailable (e.g., national shortage).</li>
+<li><em>Scenario C</em>: The board relaxes the cost reduction target to 3% instead of 6%.</li>
+</ul></li>
+<li><p><strong>Managerial report</strong>: Write a 1–2 page executive summary (within your notebook or as a separate markdown cell) advising the PHP leadership team. Your report should translate the optimization results into actionable recommendations, discuss risks and limitations of the model, and identify what additional data or model extensions would improve decision-making.</p></li>
+</ol>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown) with all sets, parameters, variables, objective, and constraints.</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with working AMPL/Gurobi code, solution output, scenario analysis, and the managerial report.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

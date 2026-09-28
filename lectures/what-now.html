@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="what-now.md" download>.md</a> <a class="chip" href="what-now-slides.pdf" download>Slides PDF</a> <a class="chip" href="what-now-slides.pptx" download>Slides PPTX</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows">ISYE 671: Linear Optimization and Network Flows</h1>
+<h1 id="lecture-what-now-from-optimization-to-continued-learning">Lecture — What Now? From Optimization to Continued Learning</h1>
+<p><strong>Spring 2026 | Northern Illinois University</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="where-we-have-been">1. Where We Have Been</h2>
+<p>Over the course of this semester, you have built a substantial foundation in optimization — one of the most powerful and versatile methodological toolkits in engineering, business, and the sciences. Let us briefly recall the arc of what we covered:</p>
+<ul>
+<li><strong>Linear programming</strong>: Formulating real-world problems as linear programs, understanding feasibility, optimality, and the interpretation of LP solutions.</li>
+<li><strong>Integer programming</strong>: Moving beyond continuous relaxations to model discrete decisions — binary variables, logical constraints, branch-and-bound, cutting planes, and solver behavior.</li>
+<li><strong>Network flow models</strong>: Minimum-cost network flow, maximum flow, shortest path, transportation, assignment, and matching — exploiting graph structure for computational efficiency.</li>
+<li><strong>Large-scale optimization</strong>: Column generation, Dantzig-Wolfe decomposition, Benders decomposition, and Lagrangian relaxation — techniques for tackling problems too large for direct solution.</li>
+</ul>
+<p>Throughout, you learned to use AMPL with the Gurobi solver to translate mathematical models into working code, interpret solver output, and make decisions based on optimization results. This is a strong foundation — but it is only the beginning.</p>
+<p>The purpose of this final lecture is to answer a simple question: <strong>What now?</strong></p>
+<hr />
+<h2 id="deepening-the-theory-of-linear-optimization">2. Deepening the Theory of Linear Optimization</h2>
+<p>In this course, we focused on modeling and computation. The theoretical foundations of linear programming are deep and elegant, and further study will sharpen your intuition and expand your capabilities.</p>
+<h3 id="the-geometry-of-linear-programming">2.1 The Geometry of Linear Programming</h3>
+<p>Every LP has a geometric interpretation. The feasible region of a linear program is a <strong>polyhedron</strong> — the intersection of finitely many halfspaces. Optimal solutions, when they exist, occur at <strong>vertices</strong> (extreme points) of this polyhedron. Understanding this geometry illuminates why LP algorithms work and provides intuition for degeneracy, alternative optima, and unboundedness.</p>
+<p>Key topics for further study include the theory of convex sets and polyhedra, the representation of polyhedra via vertices and extreme rays (the Minkowski-Weyl theorem), and the relationship between the geometry of the feasible region and the structure of optimal solutions.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Bertsimas and Tsitsiklis, <em>Introduction to Linear Optimization</em> (1997) — Chapters 2–3 provide a rigorous geometric treatment.</li>
+<li>Chvátal, <em>Linear Programming</em> (1983) — An accessible classic with excellent geometric intuition.</li>
+</ul>
+<h3 id="the-simplex-method">2.2 The Simplex Method</h3>
+<p>The simplex method, developed by George Dantzig in 1947, remains one of the most important algorithms in all of computational mathematics. It moves along the edges of the feasible polyhedron from vertex to vertex, improving the objective at each step. Although we used solvers to handle the computation, understanding the simplex method — pivoting, basis selection, and the algebra of the simplex tableau — gives you insight into what the solver is actually doing.</p>
+<p>Further study should cover: the revised simplex method (the computationally practical form), anti-cycling rules (Bland’s rule, lexicographic pivoting), and the question of simplex complexity (worst-case exponential, but remarkably efficient in practice).</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Bertsimas and Tsitsiklis, <em>Introduction to Linear Optimization</em> (1997) — Chapters 3–4.</li>
+<li>Rardin, <em>Optimization in Operations Research</em> (2016) — Chapter 5 (our textbook).</li>
+</ul>
+<h3 id="interior-point-methods">2.3 Interior Point Methods</h3>
+<p>Interior point methods take a fundamentally different approach: rather than walking along the boundary of the feasible region, they move through the interior. Karmarkar’s 1984 algorithm showed that LPs could be solved in polynomial time using this approach, and modern interior point methods (particularly primal-dual path-following methods) are competitive with — and sometimes superior to — the simplex method, especially for large-scale problems.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Wright, <em>Primal-Dual Interior-Point Methods</em> (1997) — The standard reference.</li>
+<li>Nocedal and Wright, <em>Numerical Optimization</em> (2006) — Chapter 14.</li>
+<li>Bertsimas and Tsitsiklis, <em>Introduction to Linear Optimization</em> (1997) — Chapter 9.</li>
+</ul>
+<h3 id="duality-theory">2.4 Duality Theory</h3>
+<p>We touched on duality in this course, but the theory goes much deeper. Every LP has a dual LP, and the relationship between primal and dual problems is one of the most profound ideas in optimization. Strong duality, complementary slackness, and the economic interpretation of dual variables (shadow prices) are foundational. Farkas’ lemma provides the theoretical underpinning for duality and has far-reaching consequences throughout optimization and game theory.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Bertsimas and Tsitsiklis, <em>Introduction to Linear Optimization</em> (1997) — Chapter 4.</li>
+<li>Rardin, <em>Optimization in Operations Research</em> (2016) — Chapter 6.</li>
+<li>Vanderbei, <em>Linear Programming: Foundations and Extensions</em> (2020) — Chapters 5–6.</li>
+</ul>
+<hr />
+<h2 id="sensitivity-analysis-understanding-the-value-of-information">3. Sensitivity Analysis: Understanding the Value of Information</h2>
+<p>Sensitivity analysis answers a critical practical question: <strong>How does the optimal solution change when the data change?</strong> In practice, data are rarely known exactly — costs fluctuate, demands are uncertain, capacities shift. Understanding sensitivity is what separates a modeler who can build a model from one who can draw actionable insights from it.</p>
+<h3 id="theory-of-sensitivity-analysis">3.1 Theory of Sensitivity Analysis</h3>
+<p>The theoretical basis of sensitivity analysis is rooted in LP duality. Ranging analysis examines how much a single coefficient (objective function coefficient or right-hand-side value) can change before the current optimal basis changes. The dual variables (shadow prices) directly quantify the marginal value of relaxing constraints.</p>
+<p>Key concepts include: allowable ranges for objective coefficients and RHS values, reduced costs and their interpretation, the 100% rule for simultaneous changes, and parametric programming for systematic sensitivity exploration.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Rardin, <em>Optimization in Operations Research</em> (2016) — Chapter 6.</li>
+<li>Bradley, Hax, and Magnanti, <em>Applied Mathematical Programming</em> (1977) — Chapter 4 (freely available online from MIT).</li>
+</ul>
+<h3 id="solver-based-sensitivity-analysis">3.2 Solver-Based Sensitivity Analysis</h3>
+<p>Modern solvers (Gurobi, CPLEX, AMPL) provide sensitivity information automatically. Gurobi, for example, reports shadow prices (dual values), reduced costs, and basis status for every variable and constraint. Learning to read and interpret solver sensitivity output is an essential practical skill.</p>
+<p>In AMPL, the <code>.dual</code> suffix on constraints gives shadow prices, and the <code>.rc</code> suffix on variables gives reduced costs. These can be combined with ranging analysis to quickly assess the robustness of an optimal solution.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Gurobi documentation: <a href="https://www.gurobi.com/documentation/">Attributes — Sensitivity Information</a></li>
+<li>AMPL documentation: <a href="https://ampl.com/resources/the-ampl-book/">Sensitivity Analysis</a></li>
+<li>Fourer, Gay, and Kernighan, <em>AMPL: A Modeling Language for Mathematical Programming</em> (2003) — Chapter 17.</li>
+</ul>
+<hr />
+<h2 id="beyond-linear-nonlinear-and-convex-optimization">4. Beyond Linear: Nonlinear and Convex Optimization</h2>
+<p>Linear programming is powerful, but many real-world problems have nonlinear objectives or constraints. The field of nonlinear optimization is vast, and the key distinction is between <strong>convex</strong> and <strong>non-convex</strong> problems.</p>
+<h3 id="convex-optimization">4.1 Convex Optimization</h3>
+<p>A convex optimization problem has a convex objective function and a convex feasible set. The defining property is that any local optimum is also a global optimum — this makes convex problems tractable and well-understood. LP is a special case of convex optimization.</p>
+<p>Important classes of convex problems include: quadratic programming (QP), second-order cone programming (SOCP), semidefinite programming (SDP), and general convex programming. These arise in portfolio optimization, robust optimization, signal processing, machine learning (support vector machines, regularized regression), and control systems.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Boyd and Vandenberghe, <em>Convex Optimization</em> (2004) — The definitive textbook, freely available at <a href="https://web.stanford.edu/~boyd/cvxbook/">https://web.stanford.edu/~boyd/cvxbook/</a>. This is perhaps the single most important book to read next.</li>
+<li>Lectures by Stephen Boyd (Stanford) are available free on YouTube.</li>
+</ul>
+<h3 id="non-convex-optimization">4.2 Non-Convex Optimization</h3>
+<p>When convexity fails, optimization becomes fundamentally harder. Local optima may not be global, and finding the global optimum may be computationally intractable. Yet non-convex problems are everywhere: deep learning training, many engineering design problems, and combinatorial optimization are all non-convex.</p>
+<p>Approaches to non-convex optimization include: global optimization methods (branch-and-bound for nonlinear problems), heuristics and metaheuristics (simulated annealing, genetic algorithms, particle swarm), convex relaxations (replacing non-convex problems with tractable convex approximations), and gradient-based methods with careful initialization.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Nocedal and Wright, <em>Numerical Optimization</em> (2006) — The standard reference for gradient-based methods.</li>
+<li>Bertsekas, <em>Nonlinear Programming</em> (2016) — Comprehensive and rigorous.</li>
+<li>Kochenderfer and Wheeler, <em>Algorithms for Optimization</em> (2019) — Excellent modern treatment accessible to engineers.</li>
+</ul>
+<hr />
+<h2 id="optimization-under-uncertainty">5. Optimization Under Uncertainty</h2>
+<p>Real-world decision-making almost always involves uncertainty. Extending optimization to handle uncertain data is one of the most active and practically important areas of operations research.</p>
+<h3 id="stochastic-programming">5.1 Stochastic Programming</h3>
+<p>Stochastic programming models uncertainty through probability distributions over scenarios. Two-stage stochastic programs make some decisions now (first stage) and recourse decisions later (second stage) once uncertainty is resolved. This framework is natural for supply chain planning, energy systems, and financial portfolio management.</p>
+<h3 id="robust-optimization">5.2 Robust Optimization</h3>
+<p>Robust optimization takes a worst-case approach: it seeks solutions that perform well under any realization of uncertain parameters within a specified uncertainty set, without requiring probability distributions. This approach is particularly appealing when distributional information is limited.</p>
+<p><strong>Where to learn more:</strong></p>
+<ul>
+<li>Birge and Louveaux, <em>Introduction to Stochastic Programming</em> (2011).</li>
+<li>Ben-Tal, El Ghaoui, and Nemirovski, <em>Robust Optimization</em> (2009).</li>
+<li>Bertsimas and Sim, “The Price of Robustness,” <em>Operations Research</em> 52(1), 2004.</li>
+</ul>
+<hr />
+<h2 id="contemporary-applications-of-optimization">6. Contemporary Applications of Optimization</h2>
+<p>Optimization is not an abstract academic exercise — it is a living, breathing methodology deployed across virtually every industry. The professional community around INFORMS (the Institute for Operations Research and the Management Sciences) is an excellent gateway to seeing optimization in action.</p>
+<h3 id="where-optimization-is-making-an-impact-today">6.1 Where Optimization Is Making an Impact Today</h3>
+<p>Consider just a few domains where the techniques you have learned are being applied at scale:</p>
+<ul>
+<li><strong>Supply chain and logistics</strong>: Vehicle routing, facility location, inventory management, and distribution network design. Companies like Amazon, UPS, and FedEx rely on optimization at the core of their operations.</li>
+<li><strong>Healthcare</strong>: Operating room scheduling, nurse staffing, organ transplant matching, radiation therapy planning, and pandemic response resource allocation.</li>
+<li><strong>Energy systems</strong>: Unit commitment, economic dispatch, renewable energy integration, grid planning, and electricity market design.</li>
+<li><strong>Finance</strong>: Portfolio optimization, risk management, algorithmic trading, and credit scoring.</li>
+<li><strong>Transportation</strong>: Airline crew scheduling, fleet assignment, railway timetabling, and ride-sharing platform optimization.</li>
+<li><strong>Manufacturing</strong>: Production scheduling, process optimization, quality control, and supply chain coordination.</li>
+<li><strong>Telecommunications</strong>: Network design, spectrum allocation, and routing.</li>
+<li><strong>Machine learning</strong>: Many ML training procedures are optimization problems — regularized regression, support vector machines, and neural network training all minimize a loss function subject to constraints.</li>
+</ul>
+<h3 id="informs-resources">6.2 INFORMS Resources</h3>
+<p>INFORMS is the leading professional society for operations research, analytics, and management science. As you continue in your career, the following INFORMS resources are valuable:</p>
+<ul>
+<li><strong>INFORMS Journals</strong>: <em>Operations Research</em>, <em>Management Science</em>, <em>INFORMS Journal on Computing</em>, <em>INFORMS Journal on Optimization</em>, and <em>INFORMS Journal on Applied Analytics</em> (formerly <em>Interfaces</em>) publish cutting-edge research and real-world applications. The <em>INFORMS Journal on Applied Analytics</em> is particularly useful for seeing how optimization is deployed in practice — it features the annual Franz Edelman Award finalists, which showcase some of the most impactful OR applications in the world.</li>
+<li><strong>TutORials in Operations Research</strong>: Published annually, these provide accessible introductions to advanced topics by leading researchers. The 2024 volume covers topics including large language models, machine learning, and mathematical optimization.</li>
+<li><strong>INFORMS Annual Meeting</strong>: The largest gathering of OR professionals, with hundreds of sessions on optimization, analytics, and their applications.</li>
+<li><strong>INFORMS Student Chapters and Competitions</strong>: If you continue in research or graduate studies, INFORMS student membership gives you access to the community, competitions (including the INFORMS Undergraduate Operations Research Prize and the Doing Good with Good OR competition), and career resources.</li>
+</ul>
+<p><strong>Explore</strong>: <a href="https://www.informs.org">https://www.informs.org</a></p>
+<hr />
+<h2 id="generative-ai-and-llms-empowering-the-or-professional">7. Generative AI and LLMs: Empowering the OR Professional</h2>
+<p>We are at an inflection point. Large language models (LLMs) and generative AI are transforming how optimization problems are formulated, coded, debugged, and interpreted. As OR professionals, you should not view AI as a replacement for your expertise — you should view it as an amplifier.</p>
+<h3 id="what-llms-can-do-for-or-right-now">7.1 What LLMs Can Do for OR Right Now</h3>
+<p>Today, LLMs can assist with several stages of the optimization workflow:</p>
+<p><strong>Problem formulation</strong>: Given a natural language description of a business problem, LLMs can draft mathematical formulations — defining decision variables, objective functions, and constraints. This is not perfect, and expert review is essential, but it dramatically accelerates the modeling process.</p>
+<p><strong>Code generation</strong>: LLMs can generate solver code (Python/Gurobi, AMPL, PuLP, OR-Tools) from mathematical formulations, including data processing, model construction, and solution extraction. In this course, you experienced this firsthand using Claude as a coding assistant.</p>
+<p><strong>Debugging and interpretation</strong>: When a model is infeasible or produces unexpected results, LLMs can help diagnose the issue, suggest constraint relaxations, and explain solver output in plain language.</p>
+<p><strong>Literature review and learning</strong>: LLMs can summarize research papers, explain unfamiliar techniques, and help you navigate the vast OR literature.</p>
+<h3 id="emerging-research-llm-powered-optimization-systems">7.2 Emerging Research: LLM-Powered Optimization Systems</h3>
+<p>The research community is actively building systems that integrate LLMs with traditional solvers:</p>
+<ul>
+<li><strong>OptiMUS</strong> (Ahmaditeshnizi, Gao, and Udell, 2024): An LLM-based agent that formulates and solves mixed-integer linear programs from natural language descriptions. OptiMUS uses a modular architecture — separate agents for formulation, code generation, and solution evaluation — and has demonstrated significant performance gains over basic prompting approaches.</li>
+<li><strong>OR-LLM-Agent</strong> (Zhang et al., 2025): A framework built on reasoning LLMs (e.g., DeepSeek-R1) that decomposes OR problem-solving into mathematical modeling, code generation, and debugging stages, with dedicated sub-agents for each task.</li>
+<li><strong>ORLM</strong> (Tang et al., 2024): A framework for training open-source LLMs specifically for optimization modeling, introducing the IndustryOR benchmark for evaluating LLMs on practical OR problems.</li>
+<li><strong>Large Language Models as Optimizers</strong> (Yang et al., 2023): The OPRO framework uses LLMs directly as optimizers by describing the optimization task in natural language and iteratively generating and evaluating new solutions.</li>
+<li><strong>PaMOP</strong> (IJCAI 2025): A framework that uses tree-structured decomposition to guide LLMs in modeling complex optimization problems, generating AMPL code via partition-based prompting.</li>
+</ul>
+<h3 id="what-llms-cannot-yet-do">7.3 What LLMs Cannot (Yet) Do</h3>
+<p>It is equally important to understand the current limitations:</p>
+<ul>
+<li><strong>Mathematical rigor</strong>: LLMs can produce plausible-looking formulations that are subtly wrong — missing constraints, incorrect index sets, or violated problem structure. Human verification remains essential.</li>
+<li><strong>Algorithmic understanding</strong>: LLMs do not “understand” algorithms the way a trained OR professional does. They pattern-match from training data, which means they can fail on novel or unusual problem structures.</li>
+<li><strong>Scalability and efficiency</strong>: For large-scale problems, choosing the right decomposition method, exploiting problem structure, and tuning solver parameters require expertise that LLMs cannot reliably provide.</li>
+<li><strong>Domain context</strong>: LLMs lack the contextual understanding of specific industries, regulations, and stakeholder preferences that shape real-world optimization.</li>
+</ul>
+<p><strong>The takeaway</strong>: Your optimization expertise becomes <em>more</em> valuable in the age of AI, not less. LLMs lower the barrier to entry for basic optimization tasks, but the demand for people who can formulate complex models correctly, interpret results critically, and make sound decisions based on those results is only growing.</p>
+<hr />
+<h2 id="working-with-data-in-operations-research">8. Working with Data in Operations Research</h2>
+<p>Optimization models do not exist in a vacuum — they require data. The quality, availability, and processing of data are often the bottleneck in applied OR work. The integration of data science and operations research is one of the most important trends in the field.</p>
+<h3 id="the-data-to-decision-pipeline">8.1 The Data-to-Decision Pipeline</h3>
+<p>A typical applied OR project involves a pipeline: raw data → data cleaning and processing → parameter estimation → model formulation → solution → implementation and monitoring. The optimization model is one component of this larger system.</p>
+<p>Skills you will need include: data wrangling (pandas, SQL), statistical estimation (demand forecasting, cost estimation), data visualization (matplotlib, seaborn, Plotly), and connecting optimization models to live data systems.</p>
+<h3 id="data-driven-optimization">8.2 Data-Driven Optimization</h3>
+<p>Several active research areas sit at the intersection of data science and optimization:</p>
+<ul>
+<li><strong>Predict-then-optimize</strong>: Use machine learning to estimate uncertain parameters (e.g., demand forecasts), then plug those estimates into an optimization model. Recent work explores training ML models to directly optimize downstream decision quality rather than prediction accuracy alone (Elmachtoub and Grigas, “Smart Predict, then Optimize,” <em>Management Science</em>, 2022).</li>
+<li><strong>Online optimization and learning</strong>: Make sequential decisions under uncertainty, learning from observed outcomes. Multi-armed bandits, online convex optimization, and reinforcement learning are key frameworks.</li>
+<li><strong>Data-driven robust optimization</strong>: Construct uncertainty sets directly from historical data, rather than assuming parametric distributions.</li>
+</ul>
+<h3 id="practical-tools">8.3 Practical Tools</h3>
+<p>Beyond the AMPL/Gurobi environment you used in this course, the optimization ecosystem is broad:</p>
+<ul>
+<li><strong>Python solvers and interfaces</strong>: Gurobi (<code>gurobipy</code>), Google OR-Tools, PuLP, CVXPY (for convex optimization), Pyomo.</li>
+<li><strong>Commercial solvers</strong>: Gurobi, CPLEX (IBM), FICO Xpress, MOSEK (for conic optimization).</li>
+<li><strong>Open-source solvers</strong>: HiGHS (LP/MIP), GLPK, CBC (COIN-OR), SCIP.</li>
+<li><strong>Data tools</strong>: pandas, NumPy, scikit-learn, and the broader Python data science stack.</li>
+</ul>
+<hr />
+<h2 id="living-studying-working-and-competing-with-ai">9. Living, Studying, Working, and Competing with AI</h2>
+<p>Let me speak directly about something I believe is essential for your careers. We are living through a period of profound technological change. AI — and large language models in particular — is reshaping every profession, including engineering, analytics, and operations research.</p>
+<h3 id="ai-is-already-here">9.1 AI Is Already Here</h3>
+<p>This is not a future prediction. AI is already being used to write code, draft reports, analyze data, generate designs, and assist with decision-making in organizations of every size. In this course, some of you used AI tools to help understand concepts, debug code, or explore alternative formulations. This is not cheating — it is the emerging reality of professional practice.</p>
+<h3 id="what-this-means-for-you">9.2 What This Means for You</h3>
+<p>The professionals who will thrive are those who can:</p>
+<ol type="1">
+<li><p><strong>Formulate problems precisely</strong>. AI can generate code, but someone must define <em>what</em> problem to solve. The ability to translate a messy real-world situation into a clean mathematical formulation is a deeply human skill that AI assists but does not replace.</p></li>
+<li><p><strong>Evaluate and validate AI output critically</strong>. AI-generated solutions must be checked. Understanding the theory and methodology behind optimization gives you the ability to spot errors that AI cannot catch itself.</p></li>
+<li><p><strong>Combine domain knowledge with technical tools</strong>. Knowing optimization methodology is necessary but not sufficient. The most impactful OR professionals are those who also understand the domain — healthcare, logistics, energy, manufacturing — deeply enough to ask the right questions.</p></li>
+<li><p><strong>Learn continuously</strong>. The tools, methods, and best practices in optimization are evolving rapidly. The ability to learn new methods, adapt to new software, and stay current with the literature is essential.</p></li>
+<li><p><strong>Communicate results effectively</strong>. An optimal solution that cannot be explained, trusted, and implemented is worthless. Translating mathematical results into actionable recommendations is a skill that AI assists but does not replace.</p></li>
+</ol>
+<h3 id="your-competitive-advantage">9.3 Your Competitive Advantage</h3>
+<p>You now have something that most professionals do not: a rigorous understanding of optimization — how to formulate problems, what makes a formulation correct, how solvers work, and how to interpret results. This knowledge is your competitive advantage. It allows you to use AI tools more effectively than someone without this background, and it allows you to contribute to problems that AI alone cannot solve.</p>
+<p>Do not think of optimization as a course you took. Think of it as a <strong>way of thinking</strong> — a systematic approach to decision-making under constraints that you will carry with you into every role you hold.</p>
+<hr />
+<h2 id="recommended-resources-for-continued-learning">10. Recommended Resources for Continued Learning</h2>
+<h3 id="textbooks">10.1 Textbooks</h3>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 27%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Book</th>
+<th>Authors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LP theory and geometry</td>
+<td><em>Introduction to Linear Optimization</em></td>
+<td>Bertsimas and Tsitsiklis (1997)</td>
+</tr>
+<tr>
+<td>LP (accessible introduction)</td>
+<td><em>Linear Programming</em></td>
+<td>Chvátal (1983)</td>
+</tr>
+<tr>
+<td>General optimization</td>
+<td><em>Optimization in Operations Research</em></td>
+<td>Rardin (2016)</td>
+</tr>
+<tr>
+<td>Convex optimization</td>
+<td><em>Convex Optimization</em></td>
+<td>Boyd and Vandenberghe (2004)</td>
+</tr>
+<tr>
+<td>Nonlinear optimization</td>
+<td><em>Numerical Optimization</em></td>
+<td>Nocedal and Wright (2006)</td>
+</tr>
+<tr>
+<td>Integer programming</td>
+<td><em>Integer Programming</em></td>
+<td>Conforti, Cornuéjols, and Zambelli (2014)</td>
+</tr>
+<tr>
+<td>Network flows</td>
+<td><em>Network Flows</em></td>
+<td>Ahuja, Magnanti, and Orlin (1993)</td>
+</tr>
+<tr>
+<td>Stochastic programming</td>
+<td><em>Introduction to Stochastic Programming</em></td>
+<td>Birge and Louveaux (2011)</td>
+</tr>
+<tr>
+<td>Robust optimization</td>
+<td><em>Robust Optimization</em></td>
+<td>Ben-Tal, El Ghaoui, and Nemirovski (2009)</td>
+</tr>
+<tr>
+<td>Interior point methods</td>
+<td><em>Primal-Dual Interior-Point Methods</em></td>
+<td>Wright (1997)</td>
+</tr>
+<tr>
+<td>Algorithms for optimization</td>
+<td><em>Algorithms for Optimization</em></td>
+<td>Kochenderfer and Wheeler (2019)</td>
+</tr>
+<tr>
+<td>AMPL modeling</td>
+<td><em>AMPL: A Modeling Language for Mathematical Programming</em></td>
+<td>Fourer, Gay, and Kernighan (2003)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="online-courses-and-lectures">10.2 Online Courses and Lectures</h3>
+<ul>
+<li><strong>Stephen Boyd’s Convex Optimization (Stanford, EE364a)</strong> — Lectures freely available on YouTube. The companion textbook is free online.</li>
+<li><strong>MIT OpenCourseWare — Introduction to Mathematical Programming (15.053)</strong> — Freely available lecture notes and problem sets.</li>
+<li><strong>Coursera / edX</strong> — Several universities offer optimization courses, including discrete optimization (University of Melbourne) and operations research (Georgia Tech).</li>
+</ul>
+<h3 id="professional-resources">10.3 Professional Resources</h3>
+<ul>
+<li><strong>INFORMS</strong> (<a href="https://www.informs.org">https://www.informs.org</a>) — Professional society for OR, analytics, and management science.</li>
+<li><strong>INFORMS TutORials in Operations Research</strong> (<a href="https://pubsonline.informs.org/series/educ">https://pubsonline.informs.org/series/educ</a>) — Annual volumes of accessible tutorials.</li>
+<li><strong>INFORMS Journal on Applied Analytics</strong> — Real-world optimization case studies, including Edelman Award finalists.</li>
+<li><strong>INFORMS Journal on Optimization</strong> — Research on data-driven optimization and optimization methods in machine learning.</li>
+<li><strong>OR/MS Today</strong> — INFORMS magazine covering industry trends and applications.</li>
+</ul>
+<h3 id="solver-documentation-and-communities">10.4 Solver Documentation and Communities</h3>
+<ul>
+<li><strong>Gurobi</strong> (<a href="https://www.gurobi.com">https://www.gurobi.com</a>) — Extensive documentation, examples, and free academic licenses.</li>
+<li><strong>AMPL</strong> (<a href="https://ampl.com">https://ampl.com</a>) — Modeling language resources and the AMPL book.</li>
+<li><strong>CVXPY</strong> (<a href="https://www.cvxpy.org">https://www.cvxpy.org</a>) — Python-embedded modeling language for convex optimization.</li>
+<li><strong>OR Stack Exchange</strong> (<a href="https://or.stackexchange.com">https://or.stackexchange.com</a>) — Community Q&amp;A for operations research.</li>
+<li><strong>COIN-OR</strong> (<a href="https://www.coin-or.org">https://www.coin-or.org</a>) — Open-source optimization software.</li>
+</ul>
+<h3 id="key-papers-at-the-intersection-of-ai-and-or">10.5 Key Papers at the Intersection of AI and OR</h3>
+<ul>
+<li>Ahmaditeshnizi, A., Gao, W., and Udell, M. (2024). “OptiMUS: Scalable Optimization Modeling with (MI)LP Solvers and Large Language Models.” <em>Proceedings of the 41st International Conference on Machine Learning (ICML)</em>, PMLR 235:577–596.</li>
+<li>Zhang, B. et al. (2025). “OR-LLM-Agent: Automating Modeling and Solving of Operations Research Optimization Problems with Reasoning LLM.” <em>arXiv preprint arXiv:2503.10009</em>.</li>
+<li>Tang, Z. et al. (2024). “ORLM: A Customizable Framework in Training Large Models for Automated Optimization Modeling.” <em>arXiv preprint arXiv:2405.17743</em>.</li>
+<li>Yang, C. et al. (2023). “Large Language Models as Optimizers.” <em>arXiv preprint arXiv:2309.03409</em>.</li>
+<li>Elmachtoub, A. N. and Grigas, P. (2022). “Smart ‘Predict, then Optimize.’” <em>Management Science</em> 68(1):9–26.</li>
+<li>Da Ros, F., Soprano, M., Di Gaspero, L., and Roitero, K. (2026). “Large Language Models for Combinatorial Optimization: A Systematic Review.” <em>ACM Computing Surveys</em>.</li>
+</ul>
+<hr />
+<h2 id="final-thoughts">11. Final Thoughts</h2>
+<p>Optimization is one of the most powerful frameworks for rational decision-making ever developed. In a world of limited resources, competing objectives, and complex constraints, the ability to formulate a problem mathematically, solve it rigorously, and translate the solution into action is extraordinarily valuable.</p>
+<p>You have spent a semester building this capability. The models you formulated, the code you wrote, the problems you solved — these are not just homework. They are the foundation of a way of thinking that will serve you in research, in industry, and in life.</p>
+<p>The field is evolving fast. New methods are being developed, new applications are being discovered, and new tools — including AI — are changing how optimization is practiced. Stay curious. Keep learning. Use the tools available to you, including AI, but always bring your own judgment, your domain knowledge, and your commitment to rigor.</p>
+<p>Optimization is not just a course. It is a methodology, a mindset, and a career. Go use it.</p>
+<hr />
+<p><em>ISYE 671 — Spring 2026 — Northern Illinois University</em></p>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows — Supplemental Note · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="swedish-steel-supplement.md" download>.md</a> <a class="chip" href="swedish-steel-supplement.pdf" download>PDF</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows-supplemental-note">ISYE 671: Linear Optimization and Network Flows — Supplemental Note</h1>
+<h2 id="revised-exercise-2.4-swedish-steel-standard-vs.-premium-product-selection">Revised Exercise 2.4: Swedish Steel — Standard vs. Premium Product Selection</h2>
+<p><strong>Instructor:</strong> Dr. Ziteng Wang | <strong>Date:</strong> February 9, 2026</p>
+<hr />
+<h2 id="motivation-why-the-original-exercise-needs-revision">Motivation: Why the Original Exercise Needs Revision</h2>
+<p>In the Swedish Steel fixed-charge model (Section 2.3 of the lecture notes), the standard product requires nickel content between 30 and 35 kg (3.0%–3.5% of the 1000 kg charge). If we naively add a “premium” option requiring at least 50 kg of nickel (<span class="math inline">\(\geq\)</span> 5%), we face a contradiction: the standard upper bound (<span class="math inline">\(N \leq 35\)</span>) and the premium lower bound (<span class="math inline">\(N \geq 50\)</span>) cannot hold simultaneously. A simple bonus variable cannot resolve this — we need to model a genuine <strong>either-or product selection</strong> using disjunctive constraints.</p>
+<p>This revised exercise illustrates a powerful and broadly applicable IP technique: using Big-M constraints to activate one of several mutually exclusive specification sets.</p>
+<hr />
+<h2 id="revised-problem-statement">Revised Problem Statement</h2>
+<p>Swedish Steel can produce one of two product grades from the same furnace charge:</p>
+<ul>
+<li><strong>Standard grade:</strong> Nickel content between 30 and 35 kg (as in the original model). Sells at the base price.</li>
+<li><strong>Premium grade:</strong> Nickel content at least 50 kg. Earns a bonus of 2,000 kroner but incurs a testing/certification fee of 500 kroner.</li>
+</ul>
+<p>All other chemical specifications (carbon, chromium, molybdenum) remain identical for both grades. The fixed-charge setup structure for ingredients 1–4 also remains unchanged.</p>
+<p><strong>Task:</strong> Modify the fixed-charge Swedish Steel model to allow the company to choose which grade to produce, and determine the optimal decision.</p>
+<hr />
+<h2 id="solution">Solution</h2>
+<h3 id="step-1-define-new-decision-variables">Step 1: Define New Decision Variables</h3>
+<p>We introduce two new binary variables, consistent with the notation in the Exercise Solutions document:</p>
+<p><span class="math display">\[z = \begin{cases} 1 &amp; \text{if the company opts into the premium contract} \\ 0 &amp; \text{otherwise} \end{cases}\]</span></p>
+<p><span class="math display">\[w = \begin{cases} 1 &amp; \text{if the premium nickel specification is active (i.e., premium is both chosen and met)} \\ 0 &amp; \text{otherwise} \end{cases}\]</span></p>
+<p>The variable <span class="math inline">\(z\)</span> represents the <strong>business decision</strong> to pursue the premium contract. The variable <span class="math inline">\(w\)</span> represents the <strong>technical outcome</strong> that the premium specification is actually enforced. We require <span class="math inline">\(w \leq z\)</span>: the premium specification can only be active if the company has opted in.</p>
+<p><strong>Why two variables?</strong> The testing fee of 500 kroner is paid whenever the company opts in (<span class="math inline">\(z = 1\)</span>), regardless of whether the nickel target is achieved. The bonus of 2,000 kroner is earned only when the premium specification is met (<span class="math inline">\(w = 1\)</span>). Separating the opt-in decision from the specification enforcement allows the objective to capture these distinct cost/benefit components.</p>
+<h3 id="step-2-replace-the-nickel-constraints-with-disjunctive-constraints">Step 2: Replace the Nickel Constraints with Disjunctive Constraints</h3>
+<p>Let <span class="math inline">\(N\)</span> denote the nickel content of the charge:</p>
+<p><span class="math display">\[N = 0.180x_1 + 0.032x_2 + x_5\]</span></p>
+<p>The original model has two nickel constraints: <span class="math inline">\(N \geq 30\)</span> and <span class="math inline">\(N \leq 35\)</span>. We must replace these with constraints that enforce <em>either</em> the standard specification <span class="math inline">\([30, 35]\)</span> (when <span class="math inline">\(w = 0\)</span>) or the premium specification <span class="math inline">\(N \geq 50\)</span> with no upper bound (when <span class="math inline">\(w = 1\)</span>).</p>
+<p>Let <span class="math inline">\(M\)</span> be a sufficiently large constant. Since <span class="math inline">\(N\)</span> cannot exceed the total charge weight, <span class="math inline">\(M = 1000\)</span> is valid (though tighter values are preferable in practice — see Discussion Point 1 below).</p>
+<p><strong>Standard nickel lower bound (active when <span class="math inline">\(w = 0\)</span>, relaxed when <span class="math inline">\(w = 1\)</span>):</strong></p>
+<p><span class="math display">\[N \geq 30 - Mw\]</span></p>
+<p><strong>Standard nickel upper bound (active when <span class="math inline">\(w = 0\)</span>, relaxed when <span class="math inline">\(w = 1\)</span>):</strong></p>
+<p><span class="math display">\[N \leq 35 + Mw\]</span></p>
+<p><strong>Premium nickel lower bound (active when <span class="math inline">\(w = 1\)</span>, relaxed when <span class="math inline">\(w = 0\)</span>):</strong></p>
+<p><span class="math display">\[N \geq 50 - M(1 - w)\]</span></p>
+<p>Note that the premium grade has <strong>no upper bound</strong> on nickel content, so there is no fourth constraint. This is an asymmetric disjunction: one side has two bounds, the other has one.</p>
+<p><strong>Verification that these work correctly:</strong></p>
+<table>
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 28%" />
+<col style="width: 28%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;"><span class="math inline">\(w\)</span></th>
+<th style="text-align: center;">Std lower</th>
+<th style="text-align: center;">Std upper</th>
+<th style="text-align: center;">Prem lower</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">0 (standard)</td>
+<td style="text-align: center;"><span class="math inline">\(N \geq 30\)</span> (binds)</td>
+<td style="text-align: center;"><span class="math inline">\(N \leq 35\)</span> (binds)</td>
+<td style="text-align: center;"><span class="math inline">\(N \geq 50 - M\)</span> (trivial)</td>
+</tr>
+<tr>
+<td style="text-align: center;">1 (premium)</td>
+<td style="text-align: center;"><span class="math inline">\(N \geq 30 - M\)</span> (trivial)</td>
+<td style="text-align: center;"><span class="math inline">\(N \leq 35 + M\)</span> (trivial)</td>
+<td style="text-align: center;"><span class="math inline">\(N \geq 50\)</span> (binds)</td>
+</tr>
+</tbody>
+</table>
+<p>These four constraints <strong>replace</strong> the original two nickel constraints. All other constraints in the model (weight, carbon, chromium, molybdenum, switching, setup) remain unchanged.</p>
+<h3 id="step-3-link-w-and-z">Step 3: Link <span class="math inline">\(w\)</span> and <span class="math inline">\(z\)</span></h3>
+<p>The premium specification can only be active if the company has opted in:</p>
+<p><span class="math display">\[w \leq z\]</span></p>
+<p>This constraint ensures that if <span class="math inline">\(z = 0\)</span> (no opt-in), then <span class="math inline">\(w = 0\)</span> (standard specification is enforced).</p>
+<h3 id="step-4-modify-the-objective-function">Step 4: Modify the Objective Function</h3>
+<p>The objective captures two separate financial effects:</p>
+<ul>
+<li><strong>Testing fee:</strong> 500 kroner, paid whenever <span class="math inline">\(z = 1\)</span> (opt-in), regardless of outcome.</li>
+<li><strong>Premium bonus:</strong> 2,000 kroner, earned whenever <span class="math inline">\(w = 1\)</span> (premium spec met and opted in).</li>
+</ul>
+<p><span class="math display">\[\min \quad \underbrace{16x_1 + 10x_2 + 8x_3 + 9x_4 + 48x_5 + 60x_6 + 53x_7}_{\text{variable ingredient costs}} + \underbrace{350(y_1 + y_2 + y_3 + y_4)}_{\text{setup costs}} + \underbrace{500z}_{\text{testing fee}} - \underbrace{2000w}_{\text{premium bonus}}\]</span></p>
+<p><strong>Key modeling insight:</strong> Since we are minimizing and <span class="math inline">\(w\)</span> carries a negative coefficient (<span class="math inline">\(-2000\)</span>), the optimizer <em>wants</em> to set <span class="math inline">\(w = 1\)</span> whenever possible. This means:</p>
+<ul>
+<li>We do not need constraints that <em>force</em> <span class="math inline">\(w = 1\)</span> when premium conditions are met — the optimizer does it automatically.</li>
+<li>We only need constraints that <em>prevent</em> <span class="math inline">\(w = 1\)</span> when conditions are not met: the four disjunctive nickel constraints and the linking constraint <span class="math inline">\(w \leq z\)</span>.</li>
+</ul>
+<p>Conversely, <span class="math inline">\(z\)</span> carries a positive coefficient (<span class="math inline">\(+500\)</span>), so the optimizer prefers <span class="math inline">\(z = 0\)</span>. It will set <span class="math inline">\(z = 1\)</span> only when the benefit from <span class="math inline">\(w = 1\)</span> (bonus of 2,000) outweighs the testing fee (500) plus any additional ingredient cost.</p>
+<h3 id="step-5-complete-revised-model">Step 5: Complete Revised Model</h3>
+<p><span class="math display">\[\min \quad \sum_{j=1}^{7} c_j x_j + \sum_{j=1}^{4} 350 y_j + 500z - 2000w\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{j=1}^{7} x_j = 1000 \quad \text{(weight)}\]</span></p>
+<p><span class="math display">\[6.5 \leq 0.0080x_1 + 0.0070x_2 + 0.0085x_3 + 0.0040x_4 \leq 7.5 \quad \text{(carbon, unchanged)}\]</span></p>
+<p><span class="math display">\[N \geq 30 - Mw \quad \text{(standard nickel lower)}\]</span></p>
+<p><span class="math display">\[N \leq 35 + Mw \quad \text{(standard nickel upper)}\]</span></p>
+<p><span class="math display">\[N \geq 50 - M(1 - w) \quad \text{(premium nickel lower)}\]</span></p>
+<p>where <span class="math inline">\(N = 0.180x_1 + 0.032x_2 + x_5\)</span></p>
+<p><span class="math display">\[10 \leq 0.120x_1 + 0.011x_2 + x_6 \leq 12 \quad \text{(chromium, unchanged)}\]</span></p>
+<p><span class="math display">\[11 \leq 0.001x_2 + x_7 \leq 13 \quad \text{(molybdenum, unchanged)}\]</span></p>
+<p><span class="math display">\[x_j \leq u_j y_j \quad \text{for } j = 1, \ldots, 4 \quad \text{(switching/setup)}\]</span></p>
+<p><span class="math display">\[w \leq z \quad \text{(premium spec requires opt-in)}\]</span></p>
+<p><span class="math display">\[x_j \geq 0, \quad y_j \in \{0,1\} \; (j = 1,\ldots,4), \quad z \in \{0,1\}, \quad w \in \{0,1\}\]</span></p>
+<hr />
+<h2 id="discussion-points-for-class">Discussion Points for Class</h2>
+<h3 id="tightening-big-m-values">1. Tightening Big-M Values</h3>
+<p>The value of <span class="math inline">\(M\)</span> must be large enough to fully relax the inactive constraints. Here <span class="math inline">\(M = 1000\)</span> works because the nickel content is bounded by the total charge weight. However:</p>
+<ul>
+<li><strong>Too small</strong> an <span class="math inline">\(M\)</span> may cut off feasible solutions.</li>
+<li><strong>Too large</strong> an <span class="math inline">\(M\)</span> weakens the LP relaxation, making the problem harder for branch-and-bound.</li>
+<li><strong>Best practice:</strong> Use the tightest valid <span class="math inline">\(M\)</span>. For the standard lower bound <span class="math inline">\(N \geq 30 - Mw\)</span>, we need <span class="math inline">\(30 - M \leq 0\)</span> when <span class="math inline">\(w = 1\)</span>, so <span class="math inline">\(M \geq 30\)</span> suffices. For the standard upper bound <span class="math inline">\(N \leq 35 + Mw\)</span>, we need the right-hand side to exceed the maximum feasible <span class="math inline">\(N\)</span> when <span class="math inline">\(w = 1\)</span>; since the premium spec pushes <span class="math inline">\(N \geq 50\)</span>, a value of <span class="math inline">\(M\)</span> such that <span class="math inline">\(35 + M\)</span> exceeds the maximum possible nickel content is needed — <span class="math inline">\(M \geq 1000 - 35 = 965\)</span> in the worst case, though tighter analysis using ingredient availabilities can reduce this. Students can derive the tightest valid <span class="math inline">\(M\)</span> for each of the three constraints as a follow-up exercise.</li>
+</ul>
+<h3 id="the-relationship-between-z-and-w">2. The Relationship between <span class="math inline">\(z\)</span> and <span class="math inline">\(w\)</span></h3>
+<p>In this model, the optimal solution will always have <span class="math inline">\(z = w\)</span> (either both 0 or both 1). Why? If <span class="math inline">\(z = 1\)</span> and <span class="math inline">\(w = 0\)</span>, the company pays the testing fee but earns no bonus and still must meet the standard spec — strictly worse than <span class="math inline">\(z = 0, w = 0\)</span>. The optimizer will never choose this.</p>
+<p>So why keep both variables? Because the problem <em>statement</em> distinguishes the business decision (opt-in) from the technical outcome (spec met). In a more complex variant — for example, if the testing fee were paid upfront and the bonus depended on a stochastic yield — <span class="math inline">\(z\)</span> and <span class="math inline">\(w\)</span> could take different values. The two-variable formulation is the more general and extensible approach.</p>
+<h3 id="generalization-multiple-product-grades">3. Generalization: Multiple Product Grades</h3>
+<p>If the company could choose among <span class="math inline">\(K\)</span> grades (e.g., standard, premium, ultra-premium), we would introduce <span class="math inline">\(w_k \in \{0,1\}\)</span> for <span class="math inline">\(k = 1, \ldots, K\)</span> with:</p>
+<p><span class="math display">\[\sum_{k=1}^{K} w_k = 1 \quad \text{(exactly one grade produced)}\]</span></p>
+<p>Each element’s bounds would be controlled by the corresponding <span class="math inline">\(w_k\)</span> via Big-M. This pattern arises frequently in process engineering and product design optimization.</p>
+<h3 id="connection-to-other-lecture-topics">4. Connection to Other Lecture Topics</h3>
+<p>This exercise ties together three techniques from the lecture:</p>
+<ul>
+<li><strong>Fixed-charge variables and switching constraints</strong> (Section 2.3) — the setup costs for ingredients.</li>
+<li><strong>Mutual exclusivity</strong> (Section 3.3, NASA) — exactly one product grade must be chosen.</li>
+<li><strong>Big-M disjunctive constraints</strong> (Section 7.2, scheduling) — the either-or specification logic.</li>
+</ul>
+<p>Students should recognize that the Big-M disjunction used here for product specifications is structurally identical to the Big-M disjunction used in scheduling for conflict constraints. The underlying principle is the same: use a binary variable and a large constant to activate exactly one of two constraint sets.</p>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

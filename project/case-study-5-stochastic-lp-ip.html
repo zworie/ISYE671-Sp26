@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 5: Stochastic LP · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-5-stochastic-lp-ip.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-5-stochastic-lp">Case Study 5: Stochastic LP</h1>
+<h2 id="agricultural-cooperative-crop-planning-under-weather-and-market-uncertainty">Agricultural Cooperative Crop Planning Under Weather and Market Uncertainty</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>The Prairie Growers Cooperative (PGC) is an agricultural cooperative of 12 member farms in north-central Illinois with a combined 18,000 acres of cropland. Each spring, PGC must decide how many acres of each crop to plant across its member farms. These planting decisions must be made <strong>before</strong> the growing season, when two critical factors remain uncertain: (1) weather conditions (which affect crop yields) and (2) commodity market prices at harvest time.</p>
+<p>PGC has historically relied on rules of thumb and individual farmer judgment. After a disastrous 2024 season in which over-commitment to a single crop led to significant losses, the cooperative’s board has engaged you to develop a <strong>two-stage stochastic linear programming model</strong> that explicitly accounts for uncertainty in yields and prices, and determines a planting plan that maximizes expected profit.</p>
+<hr />
+<h2 id="problem-data">Problem Data</h2>
+<h3 id="crops">Crops</h3>
+<p>PGC considers four crops for the upcoming season:</p>
+<table>
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr>
+<th>Crop</th>
+<th style="text-align: center;">Abbreviation</th>
+<th style="text-align: center;">Planting Cost (<span class="math inline">\(/acre) | Harvest Cost (\)</span>/acre)</th>
+<th style="text-align: center;">Min Acreage</th>
+<th style="text-align: center;">Max Acreage</th>
+<th style="text-align: center;"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Corn</td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: center;">420</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">4,000</td>
+<td style="text-align: center;">10,000</td>
+</tr>
+<tr>
+<td>Soybeans</td>
+<td style="text-align: center;">SB</td>
+<td style="text-align: center;">280</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">3,000</td>
+<td style="text-align: center;">9,000</td>
+</tr>
+<tr>
+<td>Winter Wheat</td>
+<td style="text-align: center;">WW</td>
+<td style="text-align: center;">210</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">1,000</td>
+<td style="text-align: center;">5,000</td>
+</tr>
+<tr>
+<td>Cover Crop (conservation)</td>
+<td style="text-align: center;">CC</td>
+<td style="text-align: center;">90</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">500</td>
+<td style="text-align: center;">4,000</td>
+</tr>
+</tbody>
+</table>
+<p>Total available acreage: 18,000 acres. All acreage must be planted (fallow land is not permitted under conservation compliance requirements).</p>
+<p>Cover crops generate no harvest revenue. Instead, they provide a <strong>soil health credit</strong> of $45/acre regardless of weather (a government conservation payment).</p>
+<p><strong>Crop rotation constraint</strong>: To maintain soil health, no more than 55% of total acreage can be planted in corn (CR). Soybeans (SB) must occupy at least 20% of total acreage.</p>
+<h3 id="uncertainty-scenarios">Uncertainty: Scenarios</h3>
+<p>PGC’s agronomist and market analyst have developed <strong>6 scenarios</strong> representing combinations of weather and market conditions:</p>
+<p><strong>Weather conditions</strong> (3 levels):</p>
+<table>
+<thead>
+<tr>
+<th>Weather</th>
+<th style="text-align: center;">Probability</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Favorable (W1)</td>
+<td style="text-align: center;">0.30</td>
+<td>Adequate rainfall, no extreme heat</td>
+</tr>
+<tr>
+<td>Normal (W2)</td>
+<td style="text-align: center;">0.45</td>
+<td>Typical conditions, minor stress periods</td>
+</tr>
+<tr>
+<td>Adverse (W3)</td>
+<td style="text-align: center;">0.25</td>
+<td>Drought or excessive rain, pest pressure</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Market conditions</strong> (2 levels):</p>
+<table>
+<thead>
+<tr>
+<th>Market</th>
+<th style="text-align: center;">Probability</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strong (M1)</td>
+<td style="text-align: center;">0.40</td>
+<td>High commodity prices, strong export demand</td>
+</tr>
+<tr>
+<td>Weak (M2)</td>
+<td style="text-align: center;">0.60</td>
+<td>Lower prices, adequate domestic supply</td>
+</tr>
+</tbody>
+</table>
+<p>Weather and market conditions are assumed <strong>independent</strong>, giving 6 scenarios:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Scenario</th>
+<th style="text-align: center;">Weather</th>
+<th style="text-align: center;">Market</th>
+<th style="text-align: center;">Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">s1</td>
+<td style="text-align: center;">W1 (Favorable)</td>
+<td style="text-align: center;">M1 (Strong)</td>
+<td style="text-align: center;">0.12</td>
+</tr>
+<tr>
+<td style="text-align: center;">s2</td>
+<td style="text-align: center;">W1 (Favorable)</td>
+<td style="text-align: center;">M2 (Weak)</td>
+<td style="text-align: center;">0.18</td>
+</tr>
+<tr>
+<td style="text-align: center;">s3</td>
+<td style="text-align: center;">W2 (Normal)</td>
+<td style="text-align: center;">M1 (Strong)</td>
+<td style="text-align: center;">0.18</td>
+</tr>
+<tr>
+<td style="text-align: center;">s4</td>
+<td style="text-align: center;">W2 (Normal)</td>
+<td style="text-align: center;">M2 (Weak)</td>
+<td style="text-align: center;">0.27</td>
+</tr>
+<tr>
+<td style="text-align: center;">s5</td>
+<td style="text-align: center;">W3 (Adverse)</td>
+<td style="text-align: center;">M1 (Strong)</td>
+<td style="text-align: center;">0.10</td>
+</tr>
+<tr>
+<td style="text-align: center;">s6</td>
+<td style="text-align: center;">W3 (Adverse)</td>
+<td style="text-align: center;">M2 (Weak)</td>
+<td style="text-align: center;">0.15</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Yield by crop and weather</strong> (bushels per acre):</p>
+<table>
+<thead>
+<tr>
+<th>Crop</th>
+<th style="text-align: center;">W1 (Favorable)</th>
+<th style="text-align: center;">W2 (Normal)</th>
+<th style="text-align: center;">W3 (Adverse)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CR</td>
+<td style="text-align: center;">210</td>
+<td style="text-align: center;">180</td>
+<td style="text-align: center;">120</td>
+</tr>
+<tr>
+<td>SB</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">35</td>
+</tr>
+<tr>
+<td>WW</td>
+<td style="text-align: center;">78</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">50</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Market price by crop and market condition</strong> ($/bushel):</p>
+<table>
+<thead>
+<tr>
+<th>Crop</th>
+<th style="text-align: center;">M1 (Strong)</th>
+<th style="text-align: center;">M2 (Weak)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CR</td>
+<td style="text-align: center;">6.80</td>
+<td style="text-align: center;">4.20</td>
+</tr>
+<tr>
+<td>SB</td>
+<td style="text-align: center;">15.50</td>
+<td style="text-align: center;">10.20</td>
+</tr>
+<tr>
+<td>WW</td>
+<td style="text-align: center;">8.20</td>
+<td style="text-align: center;">5.40</td>
+</tr>
+</tbody>
+</table>
+<h3 id="second-stage-recourse-decisions">Second-Stage (Recourse) Decisions</h3>
+<p>After the growing season, once weather and market conditions are known, PGC must decide how to sell its production. There are two selling options:</p>
+<ol type="1">
+<li><p><strong>Immediate sale</strong>: Sell all production at the realized spot market price. Revenue = yield × acres × price.</p></li>
+<li><p><strong>Contract sale at a discount</strong>: Before the season, PGC can commit a portion of expected production (up to 50% of normal-weather expected production) to a <strong>pre-season contract</strong> at a guaranteed price equal to <strong>85% of the average market price</strong> (average of Strong and Weak). The contract volume is a first-stage decision. If actual production falls short of the contracted amount, PGC must purchase on the spot market at 115% of the realized price to fulfill the contract.</p></li>
+</ol>
+<p>Any production beyond the contract volume is sold at the realized spot price.</p>
+<h3 id="additional-costs">Additional Costs</h3>
+<ul>
+<li><strong>Handling and transport</strong>: $0.20/bushel for all crops sold (applies to both contract and spot sales).</li>
+</ul>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-model-formulation">Part 1: Model Formulation</h3>
+<p>Formulate a <strong>two-stage stochastic linear programming</strong> model.</p>
+<ol type="1">
+<li><p><strong>Stage structure</strong>: Clearly define:</p>
+<ul>
+<li><strong>First-stage decisions</strong> (before uncertainty is resolved): acreage allocation for each crop, contract sale volumes.</li>
+<li><strong>Second-stage decisions</strong> (after scenario realization): spot market sales, any shortfall purchases to fulfill contracts.</li>
+</ul></li>
+<li><p><strong>Decision variables</strong>: Define all variables with appropriate indices. First-stage variables have no scenario index; second-stage variables are indexed by scenario <span class="math inline">\(s\)</span>.</p></li>
+<li><p><strong>Objective function</strong>: Maximize expected profit across all scenarios: <span class="math display">\[\max \quad -(\text{first-stage costs}) + \sum_{s} p_s \cdot (\text{second-stage net revenue in scenario } s)\]</span> Write out each cost and revenue component explicitly.</p></li>
+<li><p><strong>Constraints</strong>:</p>
+<ul>
+<li>Acreage allocation: total = 18,000; individual crop bounds; rotation constraints</li>
+<li>Contract limits: cannot contract more than 50% of normal-weather expected production</li>
+<li>Production by scenario: <span class="math inline">\(\text{production}_{c,s} = \text{yield}_{c,w(s)} \times \text{acres}_c\)</span></li>
+<li>Sales balance: contract delivery + spot sales = production + shortfall purchase (per crop, per scenario)</li>
+<li>Shortfall definition: shortfall ≥ contract volume − production (per crop, per scenario)</li>
+<li>Non-negativity</li>
+</ul></li>
+<li><p><strong>Linearity</strong>: Confirm that this formulation is a linear program (no binary or integer variables). How many variables and constraints does the model have?</p></li>
+<li><p><strong>Assumptions</strong>: Document all assumptions, particularly the independence of weather and market, and the contract mechanism.</p></li>
+</ol>
+<h3 id="part-2-implementation-and-solution">Part 2: Implementation and Solution</h3>
+<p>Implement the model in AMPL/Gurobi in a Google Colab notebook.</p>
+<ol type="1">
+<li><strong>Solve the stochastic model</strong> and report:
+<ul>
+<li>Optimal first-stage decisions: acreage by crop, contract volumes.</li>
+<li>Expected total profit.</li>
+<li>Second-stage decisions for each of the 6 scenarios.</li>
+</ul></li>
+<li><strong>Value of the Stochastic Solution (VSS)</strong>:
+<ul>
+<li>Solve the <strong>expected-value (EV) problem</strong>: replace all random parameters (yields and prices) with their probability-weighted expectations. Record the EV first-stage decisions.</li>
+<li>Compute the <strong>EEV</strong>: fix the first-stage variables to the EV solution and re-solve under the original 6 scenarios. Report the expected profit.</li>
+<li>VSS = (Stochastic solution objective) − EEV. Interpret the result.</li>
+</ul></li>
+<li><strong>Expected Value of Perfect Information (EVPI)</strong>:
+<ul>
+<li>Compute the <strong>wait-and-see (WS) solution</strong>: solve a separate deterministic problem for each of the 6 scenarios (as if you knew the outcome in advance), then compute the probability-weighted average profit.</li>
+<li>EVPI = WS − (Stochastic solution objective). Interpret: what is the maximum PGC should pay for a perfect forecast?</li>
+</ul></li>
+</ol>
+<h3 id="part-3-scenario-analysis-and-recommendations">Part 3: Scenario Analysis and Recommendations</h3>
+<ol type="1">
+<li><p><strong>Profit distribution</strong>: Compute the profit for each of the 6 scenarios under the optimal stochastic solution. Create a bar chart showing the profit distribution. What is the worst-case scenario profit?</p></li>
+<li><p><strong>Weather sensitivity</strong>: Re-solve the model with the adverse weather probability increased from 0.25 to 0.40 (reducing favorable to 0.15 and normal to 0.45). How does the optimal planting plan change? How much does expected profit decline?</p></li>
+<li><p><strong>Contract strategy analysis</strong>: Solve the model with no contracts allowed (all sales at spot price). Compare expected profit and profit variability to the baseline model. Is the contract mechanism valuable?</p></li>
+<li><p><strong>Advisory memo</strong>: Write a 1-page memo to the PGC board that includes:</p>
+<ul>
+<li>The recommended planting plan and contract strategy.</li>
+<li>Key risks and how the plan manages them.</li>
+<li>The value of improved weather forecasting (EVPI) and whether it is worth investing in.</li>
+<li>Recommendations in accessible language — board members are farmers, not optimization specialists.</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown) with the two-stage stochastic LP model.</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with AMPL/Gurobi implementation, VSS/EVPI calculations, scenario analysis, and the advisory memo.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

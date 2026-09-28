@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="ml-and-optimization.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows">ISYE 671: Linear Optimization and Network Flows</h1>
+<h1 id="lecture-notes-machine-learning-and-optimization">Lecture Notes — Machine Learning and Optimization</h1>
+<p><strong>Northern Illinois University — Spring 2026</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="introduction-two-fields-deeply-connected">1. Introduction: Two Fields, Deeply Connected</h2>
+<p>Machine learning (ML) and mathematical optimization are not separate disciplines — they are deeply intertwined. At the core of virtually every ML method is an optimization problem: finding model parameters that minimize a loss function over training data.</p>
+<p>This lecture explores the intersection from two complementary perspectives:</p>
+<ol type="1">
+<li><strong>Optimization as the engine of ML</strong>: How LP, IP, and convex optimization formulations underlie classification, regression, clustering, and other ML tasks.</li>
+<li><strong>ML-assisted optimization</strong>: How ML techniques can improve the performance of optimization algorithms (solver tuning, warm starting, learning to cut/branch).</li>
+</ol>
+<p>Our goal is not to cover ML comprehensively — that is a separate course — but to show that the optimization modeling skills you have developed in ISYE 671 are <em>directly applicable</em> to ML problems, and that the two fields increasingly inform each other.</p>
+<blockquote>
+<p><strong>Connection to prior material</strong>: You will see LP duality reappear in support vector machines, integer programming in optimal classification trees, and network flow structure in clustering. The formulation and solver skills from earlier lectures carry over directly.</p>
+</blockquote>
+<hr />
+<h2 id="regression-as-optimization">2. Regression as Optimization</h2>
+<h3 id="ordinary-least-squares-review">2.1 Ordinary Least Squares (Review)</h3>
+<p>The most familiar ML/statistics model — linear regression — is an optimization problem:</p>
+<p><span class="math display">\[\min_{\beta} \; \sum_{i=1}^{n} (y_i - x_i^\top \beta)^2\]</span></p>
+<p>where <span class="math inline">\(y_i\)</span> are observed responses, <span class="math inline">\(x_i \in \mathbb{R}^p\)</span> are feature vectors, and <span class="math inline">\(\beta \in \mathbb{R}^p\)</span> are the model parameters. This is an unconstrained <em>convex quadratic program</em> with a closed-form solution <span class="math inline">\(\beta^* = (X^\top X)^{-1} X^\top y\)</span>.</p>
+<h3 id="regularized-regression">2.2 Regularized Regression</h3>
+<p>When there are many features (large <span class="math inline">\(p\)</span>) or correlated predictors, regularization improves generalization. The two most common forms are both optimization problems:</p>
+<p><strong>LASSO (L1 regularization):</strong></p>
+<p><span class="math display">\[\min_{\beta} \; \sum_{i=1}^{n} (y_i - x_i^\top \beta)^2 + \lambda \sum_{j=1}^{p} |\beta_j|\]</span></p>
+<p>The L1 penalty encourages <strong>sparsity</strong> — many coefficients are driven exactly to zero, performing automatic feature selection. This problem is a <strong>quadratic program (QP)</strong> that can be reformulated as an LP or solved with specialized solvers.</p>
+<p><strong>LP reformulation of LASSO</strong>: Introduce variables <span class="math inline">\(\beta_j = \beta_j^+ - \beta_j^-\)</span> with <span class="math inline">\(\beta_j^+, \beta_j^- \geq 0\)</span>, and auxiliary variables for the absolute residuals. The LASSO can then be expressed as:</p>
+<p><span class="math display">\[\min_{\beta^+, \beta^-, t} \; \sum_{i} t_i + \lambda \sum_j (\beta_j^+ + \beta_j^-)\]</span></p>
+<p>subject to constraints linking <span class="math inline">\(t_i\)</span> to the squared residuals (or, using the L1 loss variant, as a pure LP).</p>
+<p><strong>Ridge (L2 regularization):</strong></p>
+<p><span class="math display">\[\min_{\beta} \; \sum_{i=1}^{n} (y_i - x_i^\top \beta)^2 + \lambda \sum_{j=1}^{p} \beta_j^2\]</span></p>
+<p>This is an unconstrained convex QP with closed-form solution <span class="math inline">\(\beta^* = (X^\top X + \lambda I)^{-1} X^\top y\)</span>.</p>
+<h3 id="robust-regression">2.3 Robust Regression</h3>
+<p>Ordinary least squares is sensitive to outliers. <strong>Least absolute deviations (LAD)</strong> regression minimizes the L1 norm of residuals:</p>
+<p><span class="math display">\[\min_{\beta} \; \sum_{i=1}^{n} |y_i - x_i^\top \beta|\]</span></p>
+<p>This is a <strong>linear program</strong>. Using the standard absolute-value linearization (introduce <span class="math inline">\(t_i \geq 0\)</span> with <span class="math inline">\(t_i \geq y_i - x_i^\top \beta\)</span> and <span class="math inline">\(t_i \geq -(y_i - x_i^\top \beta)\)</span>):</p>
+<p><span class="math display">\[\min_{\beta, t} \; \sum_{i} t_i\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[t_i \geq y_i - x_i^\top \beta \quad \forall \, i\]</span></p>
+<p><span class="math display">\[t_i \geq -(y_i - x_i^\top \beta) \quad \forall \, i\]</span></p>
+<p><span class="math display">\[t_i \geq 0 \quad \forall \, i\]</span></p>
+<p>This is a standard LP that can be solved directly with AMPL/Gurobi. The LAD estimator is more robust to outliers because it penalizes large residuals linearly rather than quadratically.</p>
+<blockquote>
+<p><strong>Modeling connection</strong>: The absolute-value linearization technique is the same one we used for modeling deviations in goal programming and blending problems earlier in the course.</p>
+</blockquote>
+<hr />
+<h2 id="classification-as-optimization">3. Classification as Optimization</h2>
+<h3 id="support-vector-machines-svm">3.1 Support Vector Machines (SVM)</h3>
+<p>The support vector machine is one of the clearest examples of ML-as-optimization. Given labeled training data <span class="math inline">\((x_i, y_i)\)</span> where <span class="math inline">\(y_i \in \{-1, +1\}\)</span>, the SVM finds a separating hyperplane <span class="math inline">\(w^\top x + b = 0\)</span> that maximizes the <strong>margin</strong> — the distance between the hyperplane and the nearest data points.</p>
+<p><strong>Hard-margin SVM</strong> (linearly separable case):</p>
+<p><span class="math display">\[\min_{w, b} \; \frac{1}{2} \|w\|^2\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[y_i (w^\top x_i + b) \geq 1 \quad \forall \, i = 1, \ldots, n\]</span></p>
+<p>This is a convex <strong>quadratic program (QP)</strong>. The constraints ensure every point is on the correct side of the margin boundary.</p>
+<p><strong>Soft-margin SVM</strong> (allows misclassification):</p>
+<p><span class="math display">\[\min_{w, b, \xi} \; \frac{1}{2} \|w\|^2 + C \sum_{i=1}^{n} \xi_i\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[y_i (w^\top x_i + b) \geq 1 - \xi_i \quad \forall \, i\]</span></p>
+<p><span class="math display">\[\xi_i \geq 0 \quad \forall \, i\]</span></p>
+<p>Here, <span class="math inline">\(\xi_i\)</span> are <strong>slack variables</strong> (exactly as in our LP formulations!) measuring the degree of misclassification, and <span class="math inline">\(C &gt; 0\)</span> is a penalty parameter controlling the trade-off between margin width and classification accuracy.</p>
+<h3 id="svm-dual-and-lp-duality">3.2 SVM Dual and LP Duality</h3>
+<p>The dual of the soft-margin SVM is:</p>
+<p><span class="math display">\[\max_{\alpha} \; \sum_{i=1}^{n} \alpha_i - \frac{1}{2} \sum_{i,j} \alpha_i \alpha_j y_i y_j x_i^\top x_j\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{i=1}^{n} \alpha_i y_i = 0, \quad 0 \leq \alpha_i \leq C \quad \forall \, i\]</span></p>
+<p>This is the same LP/QP duality we studied for linear programs, applied to a QP. The dual variables <span class="math inline">\(\alpha_i\)</span> (analogous to shadow prices) are nonzero only for the <strong>support vectors</strong> — the data points on or inside the margin boundary. This sparsity is analogous to how only binding constraints have nonzero duals in LP.</p>
+<h3 id="linear-svm-as-an-lp">3.3 Linear SVM as an LP</h3>
+<p>If we replace the quadratic <span class="math inline">\(\|w\|^2\)</span> term with the L1 norm <span class="math inline">\(\|w\|_1 = \sum_j |w_j|\)</span> (which also promotes sparsity in the weight vector), the SVM becomes a <strong>linear program</strong>:</p>
+<p><span class="math display">\[\min_{w^+, w^-, b, \xi} \; \sum_{j=1}^{p} (w_j^+ + w_j^-) + C \sum_{i=1}^{n} \xi_i\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[y_i \left( \sum_j (w_j^+ - w_j^-) x_{ij} + b \right) \geq 1 - \xi_i \quad \forall \, i\]</span></p>
+<p><span class="math display">\[w_j^+, w_j^- \geq 0 \; \forall \, j, \quad \xi_i \geq 0 \; \forall \, i\]</span></p>
+<p>This can be solved with AMPL/Gurobi as a standard LP. The LP-SVM simultaneously classifies data and selects features (the features with <span class="math inline">\(w_j^+ = w_j^- = 0\)</span> are irrelevant).</p>
+<hr />
+<h2 id="clustering-as-optimization">4. Clustering as Optimization</h2>
+<h3 id="k-means-as-an-optimization-problem">4.1 K-Means as an Optimization Problem</h3>
+<p>K-means clustering assigns <span class="math inline">\(n\)</span> data points to <span class="math inline">\(K\)</span> clusters to minimize the total within-cluster sum of squared distances:</p>
+<p><span class="math display">\[\min \; \sum_{k=1}^{K} \sum_{i \in C_k} \|x_i - \mu_k\|^2\]</span></p>
+<p>where <span class="math inline">\(C_k\)</span> is the set of points assigned to cluster <span class="math inline">\(k\)</span> and <span class="math inline">\(\mu_k\)</span> is the centroid of cluster <span class="math inline">\(k\)</span>. This is a combinatorial optimization problem (assigning points to clusters) and is NP-hard in general.</p>
+<h3 id="clustering-via-integer-programming">4.2 Clustering via Integer Programming</h3>
+<p>We can formulate clustering as an IP. Let:</p>
+<ul>
+<li><span class="math inline">\(z_{ik} = 1\)</span> if point <span class="math inline">\(i\)</span> is assigned to cluster <span class="math inline">\(k\)</span></li>
+<li><span class="math inline">\(d_{ij}\)</span> = distance between points <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span></li>
+</ul>
+<p><strong>Minimum-sum-of-distances clustering:</strong></p>
+<p><span class="math display">\[\min \; \sum_{i=1}^{n} \sum_{j=1}^{n} \sum_{k=1}^{K} d_{ij} \, z_{ik} \, z_{jk}\]</span></p>
+<p>This is a <em>quadratic</em> integer program. A linearizable alternative is the <strong>K-medians</strong> formulation, which selects <span class="math inline">\(K\)</span> points as cluster centers:</p>
+<p><strong>K-Medians:</strong></p>
+<p><span class="math display">\[\min \; \sum_{i=1}^{n} \sum_{j=1}^{n} d_{ij} \, x_{ij}\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{j=1}^{n} x_{ij} = 1 \quad \forall \, i \qquad \text{(each point assigned to one center)}\]</span></p>
+<p><span class="math display">\[x_{ij} \leq y_j \quad \forall \, i, j \qquad \text{(can only assign to an open center)}\]</span></p>
+<p><span class="math display">\[\sum_{j=1}^{n} y_j = K \qquad \text{(exactly $K$ centers)}\]</span></p>
+<p><span class="math display">\[x_{ij} \in \{0, 1\}, \quad y_j \in \{0, 1\}\]</span></p>
+<blockquote>
+<p><strong>Modeling connection</strong>: This is precisely the <strong>facility location</strong> formulation we studied in integer programming, with customers = data points, facilities = potential cluster centers, and the objective = total assignment distance. The same modeling techniques (and AMPL/Gurobi implementations) apply directly.</p>
+</blockquote>
+<hr />
+<h2 id="decision-trees-and-integer-programming">5. Decision Trees and Integer Programming</h2>
+<h3 id="optimal-classification-trees">5.1 Optimal Classification Trees</h3>
+<p>Traditional decision tree algorithms (CART, C4.5) use greedy, top-down heuristics — they split one node at a time, choosing the locally best feature and threshold. These methods are fast but produce suboptimal trees.</p>
+<p><strong>Optimal classification trees</strong> use MIP to find the tree that minimizes misclassification over the entire training set simultaneously, rather than greedily.</p>
+<h3 id="mip-formulation-simplified">5.2 MIP Formulation (Simplified)</h3>
+<p>For a binary classification tree of depth <span class="math inline">\(D\)</span> with <span class="math inline">\(T = 2^D - 1\)</span> internal (branch) nodes and <span class="math inline">\(2^D\)</span> leaf nodes:</p>
+<p><strong>Decision variables:</strong></p>
+<ul>
+<li><span class="math inline">\(a_{jt} \in \{0, 1\}\)</span>: feature <span class="math inline">\(j\)</span> is used for splitting at branch node <span class="math inline">\(t\)</span></li>
+<li><span class="math inline">\(b_t \in [0, 1]\)</span>: threshold at branch node <span class="math inline">\(t\)</span></li>
+<li><span class="math inline">\(z_{it} \in \{0, 1\}\)</span>: data point <span class="math inline">\(i\)</span> is routed to leaf <span class="math inline">\(t\)</span></li>
+<li><span class="math inline">\(c_{kt}\)</span>: leaf <span class="math inline">\(t\)</span> predicts class <span class="math inline">\(k\)</span></li>
+</ul>
+<p><strong>Objective</strong>: Minimize total misclassification:</p>
+<p><span class="math display">\[\min \; \sum_{i=1}^{n} \sum_{t \in \text{leaves}} z_{it} (1 - c_{y_i, t})\]</span></p>
+<p><strong>Key constraints:</strong></p>
+<ul>
+<li>At each branch node, exactly one feature is selected: <span class="math inline">\(\sum_j a_{jt} = 1\)</span></li>
+<li>Data points are routed left or right based on the split: if the selected feature value is below the threshold, go left; otherwise, go right.</li>
+<li>Each data point reaches exactly one leaf: <span class="math inline">\(\sum_{t \in \text{leaves}} z_{it} = 1\)</span></li>
+<li>Each leaf predicts one class: <span class="math inline">\(\sum_k c_{kt} = 1\)</span></li>
+</ul>
+<p><strong>Complexity control</strong>: To prevent overfitting, add a regularization term penalizing tree complexity (number of active branch nodes):</p>
+<p><span class="math display">\[+ \alpha \sum_{t \in \text{branches}} \sum_j a_{jt}\]</span></p>
+<p>where <span class="math inline">\(\alpha &gt; 0\)</span> is the complexity penalty.</p>
+<blockquote>
+<p><strong>Why this matters</strong>: Optimal trees can significantly outperform greedy trees, especially when the dataset is small and every split matters. The MIP formulation uses the same binary variable modeling and big-M techniques from our IP lectures. The trade-off is computational cost — optimal trees for large datasets can be very expensive to solve.</p>
+</blockquote>
+<h3 id="practical-considerations">5.3 Practical Considerations</h3>
+<ul>
+<li>For depth <span class="math inline">\(D = 3\)</span> with <span class="math inline">\(p = 10\)</span> features and <span class="math inline">\(n = 200\)</span> data points, the MIP has roughly <span class="math inline">\(200 \times 8 + 7 \times 10 + 7 + 8 \times 2 \approx 1,700\)</span> binary variables. Gurobi can handle this in seconds.</li>
+<li>For depth <span class="math inline">\(D = 5\)</span> and <span class="math inline">\(n = 10,000\)</span>, the problem becomes much larger. Heuristics (warm starts from CART), symmetry breaking, and cutting planes are essential.</li>
+<li>The library <code>interpretableai</code> and the method OCT (Bertsimas &amp; Dunn, 2017) implement production-grade optimal trees.</li>
+</ul>
+<hr />
+<h2 id="ml-assisted-optimization">6. ML-Assisted Optimization</h2>
+<p>So far, we have seen optimization <em>inside</em> ML. The reverse direction — using ML to <em>improve</em> optimization — is a rapidly growing research frontier.</p>
+<h3 id="learning-to-configure-solvers">6.1 Learning to Configure Solvers</h3>
+<p>Modern solvers like Gurobi have hundreds of parameters (branching strategies, cut selection, heuristic frequency). The best configuration depends on the problem instance. ML can learn mappings from <strong>problem features</strong> (size, density, constraint types) to <strong>good parameter settings</strong>:</p>
+<ul>
+<li>Extract features from the MIP (number of variables, constraint matrix density, objective coefficient distribution).</li>
+<li>Train a regression or classification model on historical solve times.</li>
+<li>Predict good parameters for new instances.</li>
+</ul>
+<h3 id="learning-to-branch">6.2 Learning to Branch</h3>
+<p>In branch-and-bound (which we studied in the IP solving lecture), the choice of which variable to branch on dramatically affects solve time. Traditional rules (most infeasible, strong branching) are handcrafted. ML-based branching:</p>
+<ul>
+<li>Collects data from many branch-and-bound runs (features of each candidate variable, which choice led to smaller trees).</li>
+<li>Trains a classifier or ranking model to predict the best branching variable.</li>
+<li>Applies the learned policy during future solves.</li>
+</ul>
+<p>This approach, pioneered by Khalil et al. (2016) and Gasse et al. (2019), has shown significant speedups on structured MIP families.</p>
+<h3 id="predicting-warm-starts">6.3 Predicting Warm Starts</h3>
+<p>For families of similar optimization problems (e.g., daily production scheduling, weekly routing), ML can predict a good starting solution based on the current instance’s features:</p>
+<ul>
+<li>Train a model on past (instance, optimal solution) pairs.</li>
+<li>For a new instance, predict an approximate solution.</li>
+<li>Feed this prediction as a warm start to the MIP solver.</li>
+</ul>
+<p>This reduces the time to find a first feasible solution and can tighten the initial gap.</p>
+<h3 id="learning-cuts-and-valid-inequalities">6.4 Learning Cuts and Valid Inequalities</h3>
+<p>Cutting planes are central to solving IPs (as we discussed in the IP solving lecture). ML can learn which cuts are most effective:</p>
+<ul>
+<li>For a family of problems, record which generated cuts were binding at optimality.</li>
+<li>Train a classifier to predict whether a candidate cut will be useful.</li>
+<li>Apply the filter during solve to reduce the number of cuts added, focusing on high-impact ones.</li>
+</ul>
+<hr />
+<h2 id="predict-then-optimize-the-integration-frontier">7. Predict-Then-Optimize: The Integration Frontier</h2>
+<h3 id="the-classical-pipeline">7.1 The Classical Pipeline</h3>
+<p>In many decision-making systems, ML and optimization are used sequentially:</p>
+<ol type="1">
+<li><strong>Predict</strong>: Use ML to forecast uncertain parameters (demand, travel times, prices).</li>
+<li><strong>Optimize</strong>: Feed the predictions into an optimization model to make decisions.</li>
+</ol>
+<p><strong>Example</strong>: A delivery company uses ML to predict next-day demand at each warehouse, then solves a VRP to plan routes.</p>
+<p>The problem: the ML model is trained to minimize <em>prediction error</em> (e.g., mean squared error), not <em>decision quality</em>. A prediction that is slightly wrong in a way that doesn’t affect the optimal decision is fine, while a prediction that is accurate on average but wrong at a critical threshold can lead to poor decisions.</p>
+<h3 id="decision-focused-learning">7.2 Decision-Focused Learning</h3>
+<p><strong>Decision-focused learning</strong> (also called <em>smart predict-then-optimize</em> or <em>SPO</em>) trains the ML model to minimize the downstream optimization cost directly:</p>
+<p><span class="math display">\[\min_{\theta} \; \sum_{i=1}^{n} \ell\left( z^*(\hat{c}_\theta(x_i)), \; z^*(c_i) \right)\]</span></p>
+<p>where <span class="math inline">\(\hat{c}_\theta(x_i)\)</span> is the ML model’s prediction of the cost vector given features <span class="math inline">\(x_i\)</span>, <span class="math inline">\(z^*(c)\)</span> is the optimal solution of the optimization problem with cost <span class="math inline">\(c\)</span>, and <span class="math inline">\(\ell\)</span> measures the decision quality gap (regret).</p>
+<p><strong>Challenge</strong>: The optimal solution <span class="math inline">\(z^*(c)\)</span> is a piecewise-constant function of <span class="math inline">\(c\)</span> (it changes only at breakpoints where the optimal basis changes), so differentiating through the optimization is non-trivial. Recent methods address this via:</p>
+<ul>
+<li><strong>Surrogate loss functions</strong> (SPO+ loss, Elmachtoub &amp; Grigas, 2022)</li>
+<li><strong>Differentiable optimization layers</strong> (using KKT conditions or perturbation)</li>
+<li><strong>Blackbox differentiation</strong> (sampling-based gradient estimates)</li>
+</ul>
+<h3 id="practical-implications">7.3 Practical Implications</h3>
+<p>For practitioners (including industrial and systems engineers), the predict-then-optimize paradigm suggests:</p>
+<ul>
+<li>When building forecasting models for optimization inputs, evaluate them by <em>decision quality</em>, not just prediction accuracy.</li>
+<li>Small improvements in forecast accuracy may not translate to better decisions — focus on the parameters that most affect the optimal solution.</li>
+<li>Joint training of prediction and optimization is an active area; for now, using the SPO+ loss is a practical starting point.</li>
+</ul>
+<hr />
+<h2 id="summary-optimization-ml-connections">8. Summary: Optimization ↔︎ ML Connections</h2>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 40%" />
+<col style="width: 10%" />
+<col style="width: 35%" />
+</colgroup>
+<thead>
+<tr>
+<th>ML Task</th>
+<th>Optimization Formulation</th>
+<th>Type</th>
+<th>ISYE 671 Connection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linear regression (LAD)</td>
+<td><span class="math inline">\(\min \sum |y_i - x_i^\top \beta|\)</span></td>
+<td>LP</td>
+<td>Absolute value linearization</td>
+</tr>
+<tr>
+<td>LASSO</td>
+<td><span class="math inline">\(\min \|y - X\beta\|^2 + \lambda \|\beta\|_1\)</span></td>
+<td>QP / LP reformulation</td>
+<td>Feature selection via sparsity</td>
+</tr>
+<tr>
+<td>SVM (L1)</td>
+<td><span class="math inline">\(\min \|w\|_1 + C \sum \xi_i\)</span></td>
+<td>LP</td>
+<td>Slack variables, duality</td>
+</tr>
+<tr>
+<td>SVM (L2)</td>
+<td><span class="math inline">\(\min \|w\|^2 + C \sum \xi_i\)</span></td>
+<td>QP</td>
+<td>LP duality generalization</td>
+</tr>
+<tr>
+<td>K-Medians clustering</td>
+<td>Facility location IP</td>
+<td>IP</td>
+<td>Facility location model</td>
+</tr>
+<tr>
+<td>Optimal decision tree</td>
+<td>MIP with binary routing</td>
+<td>MIP</td>
+<td>Binary variables, big-M</td>
+</tr>
+<tr>
+<td>Predict-then-optimize</td>
+<td>Nested ML + LP/IP</td>
+<td>Bilevel</td>
+<td>Sensitivity analysis, duality</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="exercises">9. Exercises</h2>
+<p><strong>Exercise 1 (LAD Regression)</strong>. The following data gives patient recovery time (<span class="math inline">\(y\)</span>, days) vs. drug dosage (<span class="math inline">\(x_1\)</span>, mg) and patient age (<span class="math inline">\(x_2\)</span>, years):</p>
+<table>
+<thead>
+<tr>
+<th>Patient</th>
+<th><span class="math inline">\(x_1\)</span></th>
+<th><span class="math inline">\(x_2\)</span></th>
+<th><span class="math inline">\(y\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>10</td>
+<td>30</td>
+<td>15</td>
+</tr>
+<tr>
+<td>2</td>
+<td>20</td>
+<td>45</td>
+<td>22</td>
+</tr>
+<tr>
+<td>3</td>
+<td>15</td>
+<td>55</td>
+<td>28</td>
+</tr>
+<tr>
+<td>4</td>
+<td>25</td>
+<td>35</td>
+<td>18</td>
+</tr>
+<tr>
+<td>5</td>
+<td>30</td>
+<td>60</td>
+<td>32</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>40</td>
+<td>20</td>
+</tr>
+<tr>
+<td>7</td>
+<td>35</td>
+<td>25</td>
+<td>12</td>
+</tr>
+<tr>
+<td>8</td>
+<td>40</td>
+<td>50</td>
+<td>25</td>
+</tr>
+</tbody>
+</table>
+<p>Formulate the LAD regression as an LP. Implement and solve in AMPL. Compare the LAD coefficients to the OLS coefficients (which you may compute in Python using <code>numpy.linalg.lstsq</code>).</p>
+<p><strong>Exercise 2 (LP-SVM)</strong>. Using the patient data from Exercise 1, create a binary classification label: <span class="math inline">\(y_i = +1\)</span> if recovery time <span class="math inline">\(\leq 20\)</span> days, <span class="math inline">\(y_i = -1\)</span> otherwise. Formulate and solve the L1-norm SVM as an LP in AMPL with <span class="math inline">\(C = 10\)</span>. Report the separating hyperplane and identify the support vectors. Visualize the decision boundary.</p>
+<p><strong>Exercise 3 (Clustering as Facility Location)</strong>. A health department wants to place <span class="math inline">\(K = 3\)</span> mobile vaccination clinics to serve 15 communities. Community locations (coordinates) and populations are given. Formulate the problem as a K-medians IP (weighted by population). Solve in AMPL. How does the solution change if <span class="math inline">\(K = 4\)</span>?</p>
+<p><strong>Exercise 4 (Optimal Decision Tree)</strong>. For the patient data from Exercise 1 (with the binary label from Exercise 2), formulate a depth-2 optimal classification tree as a MIP. You may restrict splits to axis-aligned (single feature) thresholds. How many binary variables does your formulation have? Solve in AMPL and compare the classification accuracy to a greedy tree (which you may build using <code>sklearn.tree.DecisionTreeClassifier</code> in Python).</p>
+<p><strong>Exercise 5 (Conceptual — ML-Assisted Optimization)</strong>. Consider a hospital that solves a nurse scheduling IP every week. The problem structure is similar each week but patient demand varies. Describe how you would use ML to: (a) predict a good warm-start solution for each week’s IP, (b) decide which cuts to add during branch-and-bound, and (c) evaluate the quality of the demand forecast by decision quality rather than prediction accuracy. For each, describe the training data, features, and ML model you would use.</p>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Rardin, R.L. <em>Optimization in Operations Research</em>, 2nd edition.</li>
+<li>Bertsimas, D. and Dunn, J. “Optimal classification trees.” <em>Machine Learning</em>, 106(7):1039–1082, 2017.</li>
+<li>Elmachtoub, A.N. and Grigas, P. “Smart ‘predict, then optimize’.” <em>Management Science</em>, 68(1):9–26, 2022.</li>
+<li>Khalil, E.B. et al. “Learning to branch in mixed integer programming.” <em>AAAI</em>, 2016.</li>
+<li>Gasse, M. et al. “Exact combinatorial optimization with graph convolutional neural networks.” <em>NeurIPS</em>, 2019.</li>
+<li>Boyd, S. and Vandenberghe, L. <em>Convex Optimization</em>. Cambridge University Press, 2004.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

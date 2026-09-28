@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows — Lecture Notes · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="integer-optimization.md" download>.md</a> <a class="chip" href="integer-optimization.pdf" download>PDF</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows-lecture-notes">ISYE 671: Linear Optimization and Network Flows — Lecture Notes</h1>
+<h2 id="integer-discrete-optimization-models">Integer (Discrete) Optimization Models</h2>
+<p><strong>Instructor:</strong> Dr. Ziteng Wang | <strong>Date:</strong> February 9, 2026 | <strong>Reading:</strong> Rardin, Chapter 11</p>
+<hr />
+<h2 id="why-integer-optimization">1. Why Integer Optimization?</h2>
+<p>Linear programming assumes all decision variables are continuous — we can choose any fractional quantity. In practice, many decisions are inherently discrete:</p>
+<ul>
+<li>You either build a warehouse or you don’t (binary).</li>
+<li>You assign 3 trucks to a route, not 2.7 (integer).</li>
+<li>You select a project or reject it — no partial funding (binary).</li>
+</ul>
+<p>Integer optimization adds integrality constraints to what might otherwise be a linear program. This seemingly small change has profound consequences: problems that LP solves in polynomial time can become NP-hard. Yet the modeling power gained is enormous.</p>
+<p><strong>Key taxonomy:</strong></p>
+<ul>
+<li><strong>Pure Integer Linear Program (ILP):</strong> All decision variables are integer.</li>
+<li><strong>Mixed-Integer Linear Program (MILP):</strong> Some variables are integer, others continuous.</li>
+<li><strong>Binary (0–1) Integer Program:</strong> Integer variables restricted to 0 or 1.</li>
+</ul>
+<p>Today we develop fluency in <em>formulating</em> integer optimization models. We will cover six model families, each illustrated with an application from Rardin’s Chapter 11, and each followed by an extension exercise for you to try.</p>
+<hr />
+<h2 id="lumpy-linear-programs-and-fixed-charges-swedish-steel-application">2. Lumpy Linear Programs and Fixed Charges — Swedish Steel Application</h2>
+<h3 id="context-and-motivation">2.1 Context and Motivation</h3>
+<p>Recall the Swedish Steel blending problem from our LP lectures. The original LP chooses a minimum-cost mix of 7 ingredients (scraps and pure additives) to produce a 1000 kg charge of steel, subject to chemical composition constraints on carbon, nickel, chromium, and molybdenum.</p>
+<p><strong>Original LP formulation (Model 11.1 in Rardin):</strong></p>
+<p><span class="math display">\[\min \quad 16x_1 + 10x_2 + 8x_3 + 9x_4 + 48x_5 + 60x_6 + 53x_7\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[x_1 + x_2 + x_3 + x_4 + x_5 + x_6 + x_7 = 1000 \quad \text{(weight)}\]</span></p>
+<p><span class="math display">\[6.5 \leq 0.0080x_1 + 0.0070x_2 + 0.0085x_3 + 0.0040x_4 \leq 7.5 \quad \text{(carbon)}\]</span></p>
+<p><span class="math display">\[30 \leq 0.180x_1 + 0.032x_2 + 1.0x_5 \leq 35 \quad \text{(nickel)}\]</span></p>
+<p><span class="math display">\[10 \leq 0.120x_1 + 0.011x_2 + 1.0x_6 \leq 12 \quad \text{(chromium)}\]</span></p>
+<p><span class="math display">\[11 \leq 0.001x_2 + 1.0x_7 \leq 13 \quad \text{(molybdenum)}\]</span></p>
+<p><span class="math display">\[x_1 \leq 75, \quad x_2 \leq 250, \quad x_j \geq 0 \; \forall j\]</span></p>
+<p><strong>LP optimal cost:</strong> 9,953.7 kroner.</p>
+<h3 id="modeling-technique-1-all-or-nothing-variables">2.2 Modeling Technique 1: All-or-Nothing Variables</h3>
+<p><strong>Real-world complication:</strong> Scraps 1 and 2 are large, indivisible blocks. Either the entire block is used, or none of it.</p>
+<blockquote>
+<p><strong>Principle (All-or-Nothing):</strong> A requirement <span class="math inline">\(x_j = 0 \text{ or } u_j\)</span> can be modeled by substituting <span class="math inline">\(x_j = u_j \, y_j\)</span>, where <span class="math inline">\(y_j \in \{0,1\}\)</span>.</p>
+</blockquote>
+<p>With <span class="math inline">\(u_1 = 75\)</span> and <span class="math inline">\(u_2 = 250\)</span>, replace <span class="math inline">\(x_1\)</span> with <span class="math inline">\(75 y_1\)</span> and <span class="math inline">\(x_2\)</span> with <span class="math inline">\(250 y_2\)</span> throughout. The resulting ILP has:</p>
+<ul>
+<li><strong>Objective:</strong> <span class="math inline">\(\min\; 1200 y_1 + 2500 y_2 + 8x_3 + 9x_4 + 48x_5 + 60x_6 + 53x_7\)</span></li>
+<li><strong>Weight:</strong> <span class="math inline">\(75 y_1 + 250 y_2 + x_3 + x_4 + x_5 + x_6 + x_7 = 1000\)</span></li>
+<li>All composition constraints updated analogously.</li>
+<li><span class="math inline">\(y_1, y_2 \in \{0,1\}\)</span>; remaining <span class="math inline">\(x_j \geq 0\)</span>.</li>
+</ul>
+<p><strong>ILP optimal cost:</strong> 9,967.1 kroner (higher due to the loss of fractional flexibility).</p>
+<p><strong>Optimal solution:</strong> <span class="math inline">\(y_1^* = 1\)</span>, <span class="math inline">\(y_2^* = 0\)</span>, <span class="math inline">\(x_3^* = 736.44\)</span>, <span class="math inline">\(x_4^* = 160.06\)</span>, <span class="math inline">\(x_5^* = 16.50\)</span>, <span class="math inline">\(x_6^* = 1.00\)</span>, <span class="math inline">\(x_7^* = 11.00\)</span>.</p>
+<h3 id="modeling-technique-2-fixed-charge-variables-and-switching-constraints">2.3 Modeling Technique 2: Fixed-Charge Variables and Switching Constraints</h3>
+<p><strong>Real-world complication:</strong> Ingredients 1–4 require a setup cost of 350 kroner each before they can be used at any nonzero level.</p>
+<p>The cost structure becomes:</p>
+<p><span class="math display">\[\text{cost}_j(x_j) = \begin{cases} f_j + c_j x_j &amp; \text{if } x_j &gt; 0 \\ 0 &amp; \text{if } x_j = 0 \end{cases}\]</span></p>
+<blockquote>
+<p><strong>Principle (Fixed Charges):</strong> Introduce binary <span class="math inline">\(y_j \in \{0,1\}\)</span> with <span class="math inline">\(y_j = 1\)</span> if <span class="math inline">\(x_j &gt; 0\)</span>. Add the fixed cost <span class="math inline">\(f_j y_j\)</span> to the objective. Link <span class="math inline">\(x_j\)</span> and <span class="math inline">\(y_j\)</span> via a <strong>switching constraint</strong>: <span class="math inline">\(x_j \leq u_j \, y_j\)</span>, where <span class="math inline">\(u_j\)</span> is a valid upper bound on <span class="math inline">\(x_j\)</span>.</p>
+</blockquote>
+<p><strong>Key modeling insight — Deriving valid upper bounds:</strong> For <span class="math inline">\(x_1 \leq 75\)</span> and <span class="math inline">\(x_2 \leq 250\)</span>, the bounds are given. For <span class="math inline">\(x_3\)</span> and <span class="math inline">\(x_4\)</span>, observe from the weight constraint that <span class="math inline">\(x_3, x_4 \leq 1000\)</span> (crude but valid). Tighter bounds yield a tighter LP relaxation.</p>
+<p><strong>Swedish Steel fixed-charge model (Model 11.4 in Rardin):</strong></p>
+<p><span class="math display">\[\min \quad 16x_1 + 10x_2 + 8x_3 + 9x_4 + 48x_5 + 60x_6 + 53x_7 + 350(y_1 + y_2 + y_3 + y_4)\]</span></p>
+<p>subject to all original LP constraints, plus:</p>
+<p><span class="math display">\[x_1 \leq 75 y_1, \quad x_2 \leq 250 y_2, \quad x_3 \leq 1000 y_3, \quad x_4 \leq 1000 y_4\]</span></p>
+<p><span class="math display">\[y_1, y_2, y_3, y_4 \in \{0,1\}\]</span></p>
+<p><strong>Optimal solution:</strong> Opens setups for ingredients 1, 3, 4 (<span class="math inline">\(y_1^* = y_3^* = y_4^* = 1\)</span>). Total cost = 11,017.1 kroner.</p>
+<h3 id="student-exercise-swedish-steel-extension">2.4 Student Exercise — Swedish Steel Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> Suppose Swedish Steel is considering a <em>premium</em> contract that offers a bonus of 2,000 kroner if the final steel charge contains at least 5% nickel content by weight (i.e., at least 50 kg of nickel in the 1000 kg charge), but this premium requires a one-time testing fee of 500 kroner regardless of whether the nickel threshold is met or not — the testing fee is paid only if the company <em>opts in</em> to the premium contract.</p>
+<p>Modify the fixed-charge version of the Swedish Steel model to incorporate this optional premium contract. Define any new variables and constraints needed.</p>
+<p><em>Hint:</em> You need a new binary variable <span class="math inline">\(z \in \{0,1\}\)</span> for the opt-in decision, and you must link the nickel content to <span class="math inline">\(z\)</span> using big-M or switching logic.</p>
+</blockquote>
+<hr />
+<h2 id="capital-budgeting-nasa-application">3. Capital Budgeting — NASA Application</h2>
+<h3 id="context">3.1 Context</h3>
+<p>NASA must select missions from 14 proposals over a 25-year planning horizon divided into 5 stages, each with a limited budget. The decision variables are:</p>
+<p><span class="math display">\[x_j = \begin{cases} 1 &amp; \text{if mission } j \text{ is selected} \\ 0 &amp; \text{otherwise} \end{cases} \quad j = 1, \ldots, 14\]</span></p>
+<p><strong>Data from Table 11.2 in Rardin</strong> (budget requirements in $billions, and mission values):</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 3%" />
+<col style="width: 11%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 13%" />
+<col style="width: 15%" />
+</colgroup>
+<thead>
+<tr>
+<th>j</th>
+<th>Mission</th>
+<th>Stg 1</th>
+<th>Stg 2</th>
+<th>Stg 3</th>
+<th>Stg 4</th>
+<th>Stg 5</th>
+<th>Value</th>
+<th>Not With</th>
+<th>Depends On</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Communications satellite</td>
+<td>6</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>200</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Orbital microwave</td>
+<td>2</td>
+<td>3</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>3</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Io lander</td>
+<td>3</td>
+<td>5</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>20</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Uranus orbiter 2020</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>10</td>
+<td>50</td>
+<td>5</td>
+<td>3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Uranus orbiter 2010</td>
+<td>—</td>
+<td>5</td>
+<td>8</td>
+<td>—</td>
+<td>—</td>
+<td>70</td>
+<td>4</td>
+<td>3</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Mercury probe</td>
+<td>—</td>
+<td>—</td>
+<td>1</td>
+<td>8</td>
+<td>4</td>
+<td>20</td>
+<td>—</td>
+<td>3</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Saturn probe</td>
+<td>1</td>
+<td>8</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>5</td>
+<td>—</td>
+<td>3</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Infrared imaging</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>5</td>
+<td>—</td>
+<td>10</td>
+<td>11</td>
+<td>—</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Ground-based SETI</td>
+<td>4</td>
+<td>5</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>200</td>
+<td>14</td>
+<td>—</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Large orbital structures</td>
+<td>—</td>
+<td>8</td>
+<td>4</td>
+<td>—</td>
+<td>—</td>
+<td>150</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Color imaging</td>
+<td>—</td>
+<td>—</td>
+<td>2</td>
+<td>7</td>
+<td>—</td>
+<td>18</td>
+<td>8</td>
+<td>2</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Medical technology</td>
+<td>5</td>
+<td>7</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>8</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Polar orbital platform</td>
+<td>—</td>
+<td>1</td>
+<td>4</td>
+<td>1</td>
+<td>1</td>
+<td>300</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Geosynchronous SETI</td>
+<td>—</td>
+<td>4</td>
+<td>5</td>
+<td>3</td>
+<td>3</td>
+<td>185</td>
+<td>9</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Stage budgets:</strong> 10, 12, 14, 14, 14 ($B).</p>
+<h3 id="modeling-technique-3-budget-constraints">3.2 Modeling Technique 3: Budget Constraints</h3>
+<p>Each stage’s total expenditure must not exceed the available budget:</p>
+<p><span class="math display">\[\sum_{j: a_{tj} &gt; 0} a_{tj} \, x_j \leq b_t \quad \text{for each stage } t = 1, \ldots, 5\]</span></p>
+<p>For example, Stage 1: <span class="math inline">\(6x_1 + 2x_2 + 3x_3 + x_7 + 4x_9 + 5x_{12} \leq 10\)</span>.</p>
+<h3 id="modeling-technique-4-mutually-exclusive-choices">3.3 Modeling Technique 4: Mutually Exclusive Choices</h3>
+<p>If at most one of a group of projects can be selected:</p>
+<p><span class="math display">\[\sum_{j \in S} x_j \leq 1\]</span></p>
+<p>NASA conflicts: missions 4 &amp; 5 (alternative timings), missions 8 &amp; 11 (incompatible tech), missions 9 &amp; 14 (alternative SETI approaches):</p>
+<p><span class="math display">\[x_4 + x_5 \leq 1, \quad x_8 + x_{11} \leq 1, \quad x_9 + x_{14} \leq 1\]</span></p>
+<h3 id="modeling-technique-5-dependency-constraints">3.4 Modeling Technique 5: Dependency Constraints</h3>
+<p>If project <span class="math inline">\(j\)</span> depends on project <span class="math inline">\(i\)</span> (can’t select <span class="math inline">\(j\)</span> without <span class="math inline">\(i\)</span>):</p>
+<p><span class="math display">\[x_j \leq x_i\]</span></p>
+<p>Mission 11 depends on mission 2; missions 4, 5, 6, 7 each depend on mission 3:</p>
+<p><span class="math display">\[x_{11} \leq x_2, \quad x_4 \leq x_3, \quad x_5 \leq x_3, \quad x_6 \leq x_3, \quad x_7 \leq x_3\]</span></p>
+<h3 id="complete-nasa-model-model-11.7">3.5 Complete NASA Model (Model 11.7)</h3>
+<p><span class="math display">\[\max \quad 200x_1 + 3x_2 + 20x_3 + 50x_4 + 70x_5 + 20x_6 + 5x_7 + 10x_8 + 200x_9 + 150x_{10} + 18x_{11} + 8x_{12} + 300x_{13} + 185x_{14}\]</span></p>
+<p>subject to all budget, mutual exclusivity, and dependency constraints above, and <span class="math inline">\(x_j \in \{0,1\}\)</span> for all <span class="math inline">\(j\)</span>.</p>
+<h3 id="student-exercise-nasa-extension">3.6 Student Exercise — NASA Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> NASA’s budget committee is considering two policy changes:</p>
+<p><strong>(a)</strong> A new “balanced portfolio” requirement: at least 3 of the selected missions must have budgetary activity in Stage 3 or later (i.e., missions that require funding in Stage 3, 4, or 5). Formulate this as an additional constraint.</p>
+<p><strong>(b)</strong> A synergy bonus: if <em>both</em> the Communications Satellite (mission 1) and the Large Orbital Structures (mission 10) are selected, an additional value of 75 is gained due to shared infrastructure. Modify the objective function and add any necessary variables/constraints to capture this.</p>
+<p><em>Hint for (b):</em> Introduce a new binary variable <span class="math inline">\(z \in \{0,1\}\)</span> with <span class="math inline">\(z = 1\)</span> only when both <span class="math inline">\(x_1 = 1\)</span> and <span class="math inline">\(x_{10} = 1\)</span>. What constraints enforce this?</p>
+</blockquote>
+<hr />
+<h2 id="set-covering-ems-location-application">4. Set Covering — EMS Location Application</h2>
+<h3 id="context-1">4.1 Context</h3>
+<p>Austin, Texas must position Emergency Medical Service (EMS) vehicles. The city is divided into 20 service districts, and there are 10 candidate station locations. Each station can serve all adjacent districts (coverage data from Figure 11.1 in Rardin).</p>
+<p><strong>Decision variables:</strong></p>
+<p><span class="math display">\[x_j = \begin{cases} 1 &amp; \text{if station } j \text{ is opened} \\ 0 &amp; \text{otherwise} \end{cases} \quad j = 1, \ldots, 10\]</span></p>
+<h3 id="key-definitions">4.2 Key Definitions</h3>
+<ul>
+<li><p><strong>Set Covering Constraint</strong> (at least one must serve each district): <span class="math inline">\(\displaystyle\sum_{j \in N_i} x_j \geq 1\)</span></p></li>
+<li><p><strong>Set Packing Constraint</strong> (at most one): <span class="math inline">\(\displaystyle\sum_{j \in N_i} x_j \leq 1\)</span></p></li>
+<li><p><strong>Set Partitioning Constraint</strong> (exactly one): <span class="math inline">\(\displaystyle\sum_{j \in N_i} x_j = 1\)</span></p></li>
+</ul>
+<p>where <span class="math inline">\(N_i\)</span> is the set of stations that can cover district <span class="math inline">\(i\)</span>.</p>
+<h3 id="minimum-cover-model-model-11.8">4.3 Minimum Cover Model (Model 11.8)</h3>
+<p>Minimize the number of stations so that every district is covered:</p>
+<p><span class="math display">\[\min \quad \sum_{j=1}^{10} x_j\]</span></p>
+<p>subject to one covering constraint per district (20 constraints). For example:</p>
+<ul>
+<li>District 1: <span class="math inline">\(x_2 \geq 1\)</span> (only station 2 covers it)</li>
+<li>District 7: <span class="math inline">\(x_2 + x_4 \geq 1\)</span></li>
+<li>District 12: <span class="math inline">\(x_4 + x_5 + x_6 \geq 1\)</span></li>
+<li>District 20: <span class="math inline">\(x_{10} \geq 1\)</span></li>
+</ul>
+<p><strong>Optimal solution:</strong> 6 stations — sites 2, 3, 4, 6, 8, and 10.</p>
+<h3 id="maximum-coverage-model-with-limited-budget-model-11.9">4.4 Maximum Coverage Model with Limited Budget (Model 11.9)</h3>
+<p>Now suppose we can afford only <strong>4 stations</strong>. We want to minimize the total importance of <em>uncovered</em> districts.</p>
+<p><strong>New variables:</strong> <span class="math inline">\(y_i \in \{0,1\}\)</span>, where <span class="math inline">\(y_i = 1\)</span> if district <span class="math inline">\(i\)</span> is uncovered.</p>
+<p><strong>District importance values</strong> (from Rardin):</p>
+<table>
+<thead>
+<tr>
+<th>Dist.</th>
+<th>Value</th>
+<th>Dist.</th>
+<th>Value</th>
+<th>Dist.</th>
+<th>Value</th>
+<th>Dist.</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>5.2</td>
+<td>6</td>
+<td>5.7</td>
+<td>11</td>
+<td>30.4</td>
+<td>16</td>
+<td>25.6</td>
+</tr>
+<tr>
+<td>2</td>
+<td>4.4</td>
+<td>7</td>
+<td>10.0</td>
+<td>12</td>
+<td>30.9</td>
+<td>17</td>
+<td>11.0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>7.1</td>
+<td>8</td>
+<td>12.2</td>
+<td>13</td>
+<td>12.0</td>
+<td>18</td>
+<td>5.3</td>
+</tr>
+<tr>
+<td>4</td>
+<td>9.0</td>
+<td>9</td>
+<td>7.6</td>
+<td>14</td>
+<td>9.3</td>
+<td>19</td>
+<td>7.9</td>
+</tr>
+<tr>
+<td>5</td>
+<td>6.1</td>
+<td>10</td>
+<td>20.3</td>
+<td>15</td>
+<td>15.5</td>
+<td>20</td>
+<td>9.9</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[\min \quad \sum_{i=1}^{20} v_i \, y_i\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{j \in N_i} x_j + y_i \geq 1 \quad \forall \, i = 1, \ldots, 20\]</span></p>
+<p><span class="math display">\[\sum_{j=1}^{10} x_j \leq 4\]</span></p>
+<p><span class="math display">\[x_j, y_i \in \{0,1\}\]</span></p>
+<p><strong>Optimal with 4 stations:</strong> sites 3, 4, 5, 9. Districts 1, 2, 6, 9, 20 are left uncovered.</p>
+<h3 id="student-exercise-ems-extension">4.5 Student Exercise — EMS Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> The city council has passed two new policies:</p>
+<p><strong>(a)</strong> <em>Double coverage requirement:</em> Districts 11 and 12 (the most populated) must each be covered by at least <strong>two</strong> stations. Modify the minimum cover model accordingly.</p>
+<p><strong>(b)</strong> <em>Equity constraint for the maximum coverage model:</em> No more than 5 districts may be left uncovered. Add this constraint to the 4-station maximum coverage model (11.9). Does this change the problem structure?</p>
+<p><strong>(c)</strong> <em>New problem:</em> Suppose the city adds an 11th candidate station location that can cover districts 9, 14, 18, and 19. Write the updated covering constraints for these four districts and re-examine the minimum cover model.</p>
+</blockquote>
+<hr />
+<h2 id="facility-location-tmark-application">5. Facility Location — Tmark Application</h2>
+<h3 id="context-2">5.1 Context</h3>
+<p>Tmark (based on an AT&amp;T telemarketing application) must choose which of 8 possible call-center sites to open and how to route calls from 14 geographic zones to minimize total cost (variable calling charges + fixed operating costs).</p>
+<p><strong>Two types of decision variables:</strong></p>
+<ul>
+<li><span class="math inline">\(y_i \in \{0,1\}\)</span>: whether facility <span class="math inline">\(i\)</span> is opened (<span class="math inline">\(i = 1, \ldots, 8\)</span>)</li>
+<li><span class="math inline">\(x_{ij} \geq 0\)</span>: fraction of zone <span class="math inline">\(j\)</span>’s demand served from facility <span class="math inline">\(i\)</span></li>
+</ul>
+<p><strong>Data (from Table 11.9 in Rardin):</strong></p>
+<ul>
+<li><span class="math inline">\(r_{ij}\)</span>: unit call charge from zone <span class="math inline">\(j\)</span> to center <span class="math inline">\(i\)</span></li>
+<li><span class="math inline">\(d_j\)</span>: demand (call units) at zone <span class="math inline">\(j\)</span></li>
+<li><span class="math inline">\(f_i\)</span>: fixed daily cost of operating center <span class="math inline">\(i\)</span></li>
+<li>Each center, if opened, must handle between <strong>1,500 and 5,000</strong> call units/day</li>
+</ul>
+<p>Fixed costs: <span class="math inline">\(f_1 = 2400\)</span>, <span class="math inline">\(f_2 = 7000\)</span>, <span class="math inline">\(f_3 = 3600\)</span>, <span class="math inline">\(f_4 = 1600\)</span>, <span class="math inline">\(f_5 = 3000\)</span>, <span class="math inline">\(f_6 = 4600\)</span>, <span class="math inline">\(f_7 = 9000\)</span>, <span class="math inline">\(f_8 = 2000\)</span>.</p>
+<h3 id="facility-location-model-structure">5.2 Facility Location Model Structure</h3>
+<blockquote>
+<p><strong>General facility location model:</strong></p>
+<p><span class="math display">\[\min \quad \sum_i \sum_j c_{ij} d_j x_{ij} + \sum_i f_i y_i\]</span></p>
+<p><span class="math display">\[\text{s.t.} \quad \sum_i x_{ij} = 1 \quad \forall \, j \quad \text{(fulfill all demand)}\]</span></p>
+<p><span class="math display">\[\sum_j d_j x_{ij} \leq u_i \, y_i \quad \forall \, i \quad \text{(capacity switching)}\]</span></p>
+<p><span class="math display">\[x_{ij} \geq 0, \quad y_i \in \{0,1\}\]</span></p>
+</blockquote>
+<h3 id="tmark-model-model-11.20">5.3 Tmark Model (Model 11.20)</h3>
+<p><span class="math display">\[\min \quad \sum_{i=1}^{8} \sum_{j=1}^{14} r_{ij} \, d_j \, x_{ij} + \sum_{i=1}^{8} f_i \, y_i\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[\sum_{i=1}^{8} x_{ij} = 1 \quad \forall \, j = 1, \ldots, 14 \quad \text{(carry zone } j \text{ load)}\]</span></p>
+<p><span class="math display">\[1500 \, y_i \leq \sum_{j=1}^{14} d_j \, x_{ij} \quad \forall \, i = 1, \ldots, 8 \quad \text{(minimum operating level)}\]</span></p>
+<p><span class="math display">\[\sum_{j=1}^{14} d_j \, x_{ij} \leq 5000 \, y_i \quad \forall \, i = 1, \ldots, 8 \quad \text{(maximum capacity)}\]</span></p>
+<p><span class="math display">\[x_{ij} \geq 0, \quad y_i \in \{0,1\}\]</span></p>
+<p><strong>Key modeling point:</strong> The minimum operating level constraint (<span class="math inline">\(1500 y_i \leq \sum_j d_j x_{ij}\)</span>) ensures that if a facility is open, it handles a meaningful workload.</p>
+<p><strong>Optimal solution:</strong> Open centers 4 and 8 (<span class="math inline">\(y_4^* = y_8^* = 1\)</span>). Zones 1, 2, 4, 5, 6, 7 served from center 4; the rest from center 8. Daily cost = $10,153.</p>
+<h3 id="student-exercise-tmark-extension">5.4 Student Exercise — Tmark Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> Tmark’s management imposes two new requirements:</p>
+<p><strong>(a)</strong> <em>Regional presence:</em> At least one center must be opened in the “western region” (sites 5, 6, 7, or 8) AND at least one in the “eastern region” (sites 1, 2, 3, or 4). Formulate these constraints.</p>
+<p><strong>(b)</strong> <em>Single-source assignment:</em> Management now requires that each zone’s entire call volume must be handled by a single center (no splitting). What changes in the model?</p>
+<p><strong>(c)</strong> <em>Budget cap on fixed costs:</em> The total fixed cost across all opened centers must not exceed $12,000 per day. Write this constraint. Does this conflict with part (a)?</p>
+</blockquote>
+<hr />
+<h2 id="network-design-wastewater-application">6. Network Design — Wastewater Application</h2>
+<h3 id="context-3">6.1 Context</h3>
+<p>A regional wastewater system must be designed for 8 population centers (nodes 1–8) with a supersink node 9 representing treatment plant outflows. Arcs represent possible collector sewers; node 9 arcs model treatment plant costs. The design must route all wastewater to treatment while minimizing total construction cost (fixed + variable per unit flow).</p>
+<p><strong>Two types of decision variables:</strong></p>
+<ul>
+<li><span class="math inline">\(x_{ij} \geq 0\)</span>: flow (population units, in thousands) on arc <span class="math inline">\((i,j)\)</span></li>
+<li><span class="math inline">\(y_{ij} \in \{0,1\}\)</span>: whether arc <span class="math inline">\((i,j)\)</span> is constructed</li>
+</ul>
+<p><strong>Data (from Figure 11.8 in Rardin):</strong></p>
+<p>Node supplies (population in thousands): node 1 = 27, node 2 = 3, node 3 = 14, node 4 = 36, node 5 = 21, node 6 = 8, node 7 = 13, node 8 = 0 (relay only). Total flow to supersink node 9 = 122.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 17%" />
+<col style="width: 22%" />
+<col style="width: 4%" />
+<col style="width: 7%" />
+<col style="width: 17%" />
+<col style="width: 22%" />
+</colgroup>
+<thead>
+<tr>
+<th>Arc</th>
+<th>Fixed Cost</th>
+<th>Variable Cost</th>
+<th></th>
+<th>Arc</th>
+<th>Fixed Cost</th>
+<th>Variable Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(1,2)</td>
+<td>240</td>
+<td>21</td>
+<td></td>
+<td>(5,6)</td>
+<td>620</td>
+<td>44</td>
+</tr>
+<tr>
+<td>(1,3)</td>
+<td>350</td>
+<td>30</td>
+<td></td>
+<td>(5,7)</td>
+<td>800</td>
+<td>51</td>
+</tr>
+<tr>
+<td>(2,3)</td>
+<td>200</td>
+<td>22</td>
+<td></td>
+<td>(6,7)</td>
+<td>500</td>
+<td>56</td>
+</tr>
+<tr>
+<td>(2,4)</td>
+<td>750</td>
+<td>58</td>
+<td></td>
+<td>(6,8)</td>
+<td>630</td>
+<td>94</td>
+</tr>
+<tr>
+<td>(3,4)</td>
+<td>610</td>
+<td>43</td>
+<td></td>
+<td>(7,4)</td>
+<td>1120</td>
+<td>82</td>
+</tr>
+<tr>
+<td>(3,9)</td>
+<td>3800</td>
+<td>1</td>
+<td></td>
+<td>(7,9)</td>
+<td>3800</td>
+<td>1</td>
+</tr>
+<tr>
+<td>(4,3)</td>
+<td>1840</td>
+<td>49</td>
+<td></td>
+<td>(8,9)</td>
+<td>2500</td>
+<td>2</td>
+</tr>
+<tr>
+<td>(4,8)</td>
+<td>780</td>
+<td>63</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="fixed-charge-network-flow-model-structure">6.2 Fixed-Charge Network Flow Model Structure</h3>
+<blockquote>
+<p><strong>Network design model:</strong></p>
+<p><span class="math display">\[\min \quad \sum_{(i,j) \in A} c_{ij} x_{ij} + \sum_{(i,j) \in A} f_{ij} y_{ij}\]</span></p>
+<p><span class="math display">\[\text{s.t.} \quad \sum_{(i,k) \in A} x_{ik} - \sum_{(k,j) \in A} x_{kj} = b_k \quad \forall \, k \in V \quad \text{(flow conservation)}\]</span></p>
+<p><span class="math display">\[0 \leq x_{ij} \leq u_{ij} \, y_{ij} \quad \forall \, (i,j) \in A \quad \text{(switching)}\]</span></p>
+<p><span class="math display">\[y_{ij} \in \{0,1\}\]</span></p>
+</blockquote>
+<p><strong>Deriving arc capacities:</strong> Since no explicit capacities are given, we derive valid upper bounds. For example, <span class="math inline">\(u_{2,3} = 27 + 3 = 30\)</span> (max possible flow is the total supply from nodes 1 and 2).</p>
+<h3 id="wastewater-model-model-11.21">6.3 Wastewater Model (Model 11.21)</h3>
+<p><strong>Flow conservation constraints</strong> (supply is negative, demand is positive):</p>
+<p><span class="math display">\[-x_{1,2} - x_{1,3} = -27 \quad \text{(node 1)}\]</span> <span class="math display">\[x_{1,2} - x_{2,3} - x_{2,4} = -3 \quad \text{(node 2)}\]</span> <span class="math display">\[x_{1,3} + x_{2,3} + x_{4,3} - x_{3,4} - x_{3,9} = -14 \quad \text{(node 3)}\]</span> <span class="math display">\[x_{2,4} + x_{3,4} + x_{7,4} - x_{4,3} - x_{4,8} = -36 \quad \text{(node 4)}\]</span> <span class="math display">\[-x_{5,6} - x_{5,7} = -21 \quad \text{(node 5)}\]</span> <span class="math display">\[x_{5,6} - x_{6,7} - x_{6,8} = -8 \quad \text{(node 6)}\]</span> <span class="math display">\[x_{5,7} + x_{6,7} - x_{7,4} - x_{7,9} = -13 \quad \text{(node 7)}\]</span> <span class="math display">\[x_{4,8} + x_{6,8} - x_{8,9} = 0 \quad \text{(node 8)}\]</span> <span class="math display">\[x_{3,9} + x_{7,9} + x_{8,9} = 122 \quad \text{(node 9: supersink)}\]</span></p>
+<p>Plus switching constraints on all 15 arcs, and binary requirements on all <span class="math inline">\(y_{ij}\)</span>.</p>
+<p><strong>Optimal solution:</strong> Construct arcs (1,3), (2,3), (4,3), (5,7), (6,7), plus treatment plant at node 7 (arc (7,9)). No plant at nodes 3 or 8. Total cost = $15,571,000.</p>
+<h3 id="student-exercise-wastewater-extension">6.4 Student Exercise — Wastewater Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> The regional planning authority is considering two modifications:</p>
+<p><strong>(a)</strong> <em>Redundancy requirement:</em> At least <strong>two</strong> treatment plants must be built (i.e., at least two of arcs (3,9), (7,9), (8,9) must be constructed). Add this constraint.</p>
+<p><strong>(b)</strong> <em>Pumped-line avoidance:</em> The pumped line (4,3) is costly to operate. The authority wants to add a penalty: if arc (4,3) is built, an additional annual maintenance cost of 500 (thousand dollars) is incurred. How do you modify the objective?</p>
+<p><strong>(c)</strong> <em>New development:</em> A new population center (node 10, population = 15 thousand) is added. It can connect to node 4 via arc (10,4) with fixed cost 400 and variable cost 35, or to node 8 via arc (10,8) with fixed cost 900 and variable cost 20. Write the new flow conservation constraint for node 10 and the switching constraints for both new arcs. What changes at node 9?</p>
+</blockquote>
+<hr />
+<h2 id="processor-scheduling-and-sequencing-custom-metalworking-application">7. Processor Scheduling and Sequencing — Custom Metalworking Application</h2>
+<h3 id="context-single-machine-scheduling">7.1 Context: Single-Machine Scheduling</h3>
+<p>Before the job shop, consider the simpler Nifty Notes single-machine problem: 6 binding jobs, each with a process time <span class="math inline">\(p_j\)</span>, release time <span class="math inline">\(r_j\)</span>, and due date <span class="math inline">\(d_j\)</span>.</p>
+<table>
+<thead>
+<tr>
+<th>Job <span class="math inline">\(j\)</span></th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\(p_j\)</span></td>
+<td>12</td>
+<td>8</td>
+<td>3</td>
+<td>10</td>
+<td>4</td>
+<td>18</td>
+</tr>
+<tr>
+<td><span class="math inline">\(r_j\)</span></td>
+<td>-20</td>
+<td>-15</td>
+<td>-12</td>
+<td>-10</td>
+<td>-3</td>
+<td>2</td>
+</tr>
+<tr>
+<td><span class="math inline">\(d_j\)</span></td>
+<td>10</td>
+<td>2</td>
+<td>72</td>
+<td>-8</td>
+<td>-6</td>
+<td>60</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modeling-technique-6-time-variables-and-disjunctive-conflict-constraints">7.2 Modeling Technique 6: Time Variables and Disjunctive (Conflict) Constraints</h3>
+<p><strong>Start-time variables:</strong> <span class="math inline">\(x_j\)</span> = time at which job <span class="math inline">\(j\)</span> begins processing.</p>
+<p><strong>Release constraints:</strong> <span class="math inline">\(x_j \geq \max(0, r_j)\)</span> for all <span class="math inline">\(j\)</span>.</p>
+<p><strong>Conflict constraints — The Big-M disjunction:</strong> For each pair <span class="math inline">\((j, j&#39;)\)</span> that share a processor, exactly one must finish before the other starts:</p>
+<blockquote>
+<p><strong>Disjunctive conflict constraints:</strong></p>
+<p><span class="math display">\[x_j + p_j \leq x_{j&#39;} + M(1 - y_{j,j&#39;})\]</span> <span class="math display">\[x_{j&#39;} + p_{j&#39;} \leq x_j + M \, y_{j,j&#39;}\]</span></p>
+<p>where <span class="math inline">\(y_{j,j&#39;} \in \{0,1\}\)</span> equals 1 if job <span class="math inline">\(j\)</span> is scheduled before <span class="math inline">\(j&#39;\)</span>, and <span class="math inline">\(M\)</span> is a sufficiently large constant.</p>
+</blockquote>
+<p><strong>How it works:</strong> If <span class="math inline">\(y_{j,j&#39;} = 1\)</span> (job <span class="math inline">\(j\)</span> first), the first constraint is binding and the second is relaxed by <span class="math inline">\(M\)</span>. If <span class="math inline">\(y_{j,j&#39;} = 0\)</span> (job <span class="math inline">\(j&#39;\)</span> first), the roles reverse.</p>
+<h3 id="scheduling-objective-functions">7.3 Scheduling Objective Functions</h3>
+<p>Common objectives (all can be combined with the conflict constraints above):</p>
+<table>
+<colgroup>
+<col style="width: 55%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr>
+<th>Objective</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Makespan (max completion)</td>
+<td><span class="math inline">\(\min \; \max_j (x_j + p_j)\)</span></td>
+</tr>
+<tr>
+<td>Mean completion time</td>
+<td><span class="math inline">\(\min \; \frac{1}{n} \sum_j (x_j + p_j)\)</span></td>
+</tr>
+<tr>
+<td>Maximum lateness</td>
+<td><span class="math inline">\(\min \; \max_j (x_j + p_j - d_j)\)</span></td>
+</tr>
+<tr>
+<td>Mean tardiness</td>
+<td><span class="math inline">\(\min \; \frac{1}{n} \sum_j \max(0, x_j + p_j - d_j)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Linearizing minmax objectives:</strong> Introduce variable <span class="math inline">\(f\)</span> and replace:</p>
+<p><span class="math display">\[\min \; f \quad \text{s.t.} \quad f \geq x_j + p_j - d_j \quad \forall j\]</span></p>
+<p><strong>Linearizing tardiness:</strong> Introduce <span class="math inline">\(t_j \geq 0\)</span> for each job:</p>
+<p><span class="math display">\[t_j \geq x_j + p_j - d_j, \quad t_j \geq 0\]</span></p>
+<p>Then minimize <span class="math inline">\(\frac{1}{n} \sum_j t_j\)</span>.</p>
+<p><strong>Equivalence results:</strong> - Minimizing mean completion time, mean flow time, and mean lateness all yield the same optimal schedule. - An optimal schedule for max lateness is also optimal for max tardiness.</p>
+<h3 id="a-student-exercise-single-machine-scheduling-nifty-notes">7.3a Student Exercise — Single-Machine Scheduling (Nifty Notes)</h3>
+<blockquote>
+<p><strong>Exercise:</strong> Using the Nifty Notes data above (6 jobs on a single binding machine), formulate the complete ILP for <strong>minimizing maximum tardiness</strong>.</p>
+<p><strong>(a)</strong> Write the release constraints for all 6 jobs. (Recall: <span class="math inline">\(x_j \geq \max(0, r_j)\)</span>, and jobs with <span class="math inline">\(r_j &lt; 0\)</span> are already available, so their release constraint is simply <span class="math inline">\(x_j \geq 0\)</span>.)</p>
+<p><strong>(b)</strong> How many disjunctive variable pairs <span class="math inline">\(y_{j,j&#39;}\)</span> are needed? Write the conflict constraint pair for jobs 2 and 6.</p>
+<p><strong>(c)</strong> Introduce tardiness variables <span class="math inline">\(t_j \geq 0\)</span> for each job and a variable <span class="math inline">\(T\)</span> representing the maximum tardiness. Write all constraints needed to define <span class="math inline">\(T\)</span> and formulate the complete objective.</p>
+<p><strong>(d)</strong> Suppose the shop acquires a second binding machine, so that <strong>two</strong> jobs can be processed simultaneously. How would you modify the conflict constraints? (<em>Hint:</em> Not all pairs of jobs need conflict constraints anymore — only sets of three or more overlapping jobs create conflicts. In fact, with two machines, a simpler approach is to partition the 6 jobs into two groups and schedule each group on its own machine. Think about how to model the machine assignment with new binary variables.)</p>
+</blockquote>
+<h3 id="job-shop-scheduling-custom-metalworking-model-11.28">7.4 Job Shop Scheduling — Custom Metalworking (Model 11.28)</h3>
+<p><strong>Three jobs</strong>, each requiring a specific sequence of workstations:</p>
+<ul>
+<li><strong>Job 1 (Die):</strong> WS1 (3 min) → WS2 (10) → WS3 (8) → WS4 (45) → WS6 (1)</li>
+<li><strong>Job 2 (Cam shaft):</strong> WS7 (50) → WS1 (6) → WS2 (11) → WS3 (6)</li>
+<li><strong>Job 3 (Fuel Injector):</strong> WS2 (5) → WS3 (9) → WS5 (2) → WS6 (1) → WS4 (25)</li>
+</ul>
+<p><strong>Decision variables:</strong> <span class="math inline">\(x_{j,k}\)</span> = start time of job <span class="math inline">\(j\)</span> on workstation <span class="math inline">\(k\)</span>.</p>
+<p><strong>Objective (makespan):</strong> <span class="math inline">\(\min \; \max\{x_{1,6} + 1, \; x_{2,3} + 6, \; x_{3,4} + 25\}\)</span></p>
+<p>Linearized: <span class="math inline">\(\min \; f\)</span> with <span class="math inline">\(f \geq x_{1,6} + 1\)</span>, <span class="math inline">\(f \geq x_{2,3} + 6\)</span>, <span class="math inline">\(f \geq x_{3,4} + 25\)</span>.</p>
+<p><strong>Precedence constraints</strong> (within each job):</p>
+<ul>
+<li>Job 1: <span class="math inline">\(x_{1,1} + 3 \leq x_{1,2}\)</span>, <span class="math inline">\(\;x_{1,2} + 10 \leq x_{1,3}\)</span>, <span class="math inline">\(\;x_{1,3} + 8 \leq x_{1,4}\)</span>, <span class="math inline">\(\;x_{1,4} + 45 \leq x_{1,6}\)</span></li>
+<li>Job 2: <span class="math inline">\(x_{2,7} + 50 \leq x_{2,1}\)</span>, <span class="math inline">\(\;x_{2,1} + 6 \leq x_{2,2}\)</span>, <span class="math inline">\(\;x_{2,2} + 11 \leq x_{2,3}\)</span></li>
+<li>Job 3: <span class="math inline">\(x_{3,2} + 5 \leq x_{3,3}\)</span>, <span class="math inline">\(\;x_{3,3} + 9 \leq x_{3,5}\)</span>, <span class="math inline">\(\;x_{3,5} + 2 \leq x_{3,6}\)</span>, <span class="math inline">\(\;x_{3,6} + 1 \leq x_{3,4}\)</span></li>
+</ul>
+<p><strong>Conflict constraints</strong> (for each pair of jobs sharing a workstation):</p>
+<p>Workstations 1, 2, 3, 4, 6 each have potential conflicts. For each conflict pair, we add disjunctive variables <span class="math inline">\(y_{j,j&#39;,k}\)</span> and constraint pairs per Principle 11.43. For example:</p>
+<ul>
+<li><strong>WS1</strong>, jobs 1 &amp; 2: <span class="math inline">\(x_{1,1} + 3 \leq x_{2,1} + M(1-y_{1,2,1})\)</span> and <span class="math inline">\(x_{2,1} + 6 \leq x_{1,1} + My_{1,2,1}\)</span></li>
+<li><strong>WS2</strong>, jobs 1, 2 &amp; 3: three pairs — (1,2), (1,3), (2,3) — each producing two constraints.</li>
+<li><strong>WS3</strong>, jobs 1, 2 &amp; 3: three pairs, six constraints.</li>
+<li><strong>WS4</strong>, jobs 1 &amp; 3: one pair, two constraints.</li>
+<li><strong>WS6</strong>, jobs 1 &amp; 3: one pair, two constraints.</li>
+</ul>
+<p><strong>Total disjunctive variables:</strong> 10 binary <span class="math inline">\(y_{j,j&#39;,k}\)</span> variables.</p>
+<p><strong>Optimal schedule:</strong> All 3 jobs complete in <strong>88 minutes</strong>.</p>
+<h3 id="student-exercise-scheduling-extension">7.5 Student Exercise — Scheduling Extension</h3>
+<blockquote>
+<p><strong>Extension Problem:</strong> Custom Metalworking receives a rush order — a 4th job (Turbine Blade):</p>
+<ul>
+<li><strong>Job 4:</strong> WS1 (8 min) → WS3 (12) → WS4 (20)</li>
+</ul>
+<p><strong>(a)</strong> Write all new <strong>precedence constraints</strong> for Job 4.</p>
+<p><strong>(b)</strong> Identify all new <strong>conflict pairs</strong> introduced by Job 4 on workstations 1, 3, and 4. Write the disjunctive constraint pair for the conflict between Jobs 2 and 4 on WS1.</p>
+<p><strong>(c)</strong> How does the makespan objective change? Write the updated linearized formulation.</p>
+<p><strong>(d)</strong> How many total binary disjunctive variables does the full 4-job model require?</p>
+</blockquote>
+<hr />
+<h2 id="summary-of-integer-modeling-techniques">8. Summary of Integer Modeling Techniques</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 41%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Variables</th>
+<th>Key Constraint Pattern</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>All-or-nothing</td>
+<td><span class="math inline">\(y_j \in \{0,1\}\)</span>; substitute <span class="math inline">\(x_j = u_j y_j\)</span></td>
+<td>Replaces continuous variables</td>
+<td>Swedish Steel</td>
+</tr>
+<tr>
+<td>Fixed charges</td>
+<td><span class="math inline">\(y_j \in \{0,1\}\)</span>; <span class="math inline">\(f_j y_j\)</span> in objective</td>
+<td>Switching: <span class="math inline">\(x_j \leq u_j y_j\)</span></td>
+<td>Swedish Steel</td>
+</tr>
+<tr>
+<td>Budget limits</td>
+<td><span class="math inline">\(x_j \in \{0,1\}\)</span></td>
+<td><span class="math inline">\(\sum a_{tj} x_j \leq b_t\)</span></td>
+<td>NASA</td>
+</tr>
+<tr>
+<td>Mutual exclusivity</td>
+<td><span class="math inline">\(x_j \in \{0,1\}\)</span></td>
+<td><span class="math inline">\(\sum_{j \in S} x_j \leq 1\)</span></td>
+<td>NASA</td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td><span class="math inline">\(x_j \in \{0,1\}\)</span></td>
+<td><span class="math inline">\(x_j \leq x_i\)</span></td>
+<td>NASA</td>
+</tr>
+<tr>
+<td>Set covering/packing</td>
+<td><span class="math inline">\(x_j \in \{0,1\}\)</span></td>
+<td><span class="math inline">\(\sum_{j \in N_i} x_j \geq 1\)</span> (or <span class="math inline">\(\leq\)</span> or <span class="math inline">\(=\)</span>)</td>
+<td>EMS</td>
+</tr>
+<tr>
+<td>Penalizing uncovered</td>
+<td><span class="math inline">\(y_i \in \{0,1\}\)</span> slack</td>
+<td><span class="math inline">\(\sum x_j + y_i \geq 1\)</span>; min <span class="math inline">\(\sum v_i y_i\)</span></td>
+<td>EMS max coverage</td>
+</tr>
+<tr>
+<td>Facility location</td>
+<td><span class="math inline">\(y_i \in \{0,1\}\)</span>, <span class="math inline">\(x_{ij} \geq 0\)</span></td>
+<td>Demand fulfillment + capacity switching</td>
+<td>Tmark</td>
+</tr>
+<tr>
+<td>Network design</td>
+<td><span class="math inline">\(y_{ij} \in \{0,1\}\)</span>, <span class="math inline">\(x_{ij} \geq 0\)</span></td>
+<td>Flow conservation + <span class="math inline">\(x_{ij} \leq u_{ij} y_{ij}\)</span></td>
+<td>Wastewater</td>
+</tr>
+<tr>
+<td>Scheduling conflicts</td>
+<td><span class="math inline">\(y_{j,j&#39;} \in \{0,1\}\)</span></td>
+<td>Big-M disjunction pairs</td>
+<td>Custom Metalworking</td>
+</tr>
+<tr>
+<td>Linearize minmax</td>
+<td>New variable <span class="math inline">\(f\)</span></td>
+<td><span class="math inline">\(f \geq\)</span> each element</td>
+<td>Scheduling objectives</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="looking-ahead">9. Looking Ahead</h2>
+<p>Next lecture: <strong>Chapter 12 — Exact Methods for Integer Optimization</strong>, including LP relaxation, branch and bound, and branch and cut. The models we formulated today will serve as our test cases.</p>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

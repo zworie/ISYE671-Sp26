@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMPL Quick Reference Guide · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="ampl-quick-reference.md" download>.md</a> <a class="chip" href="ampl-quick-reference.pdf" download>PDF</a></span></div>
+<article class="prose">
+<h1 id="ampl-quick-reference-guide">AMPL Quick Reference Guide</h1>
+<p><strong>Graduate Optimization Course</strong> | Northern Illinois University</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol type="1">
+<li><a href="#1-core-syntax">Core Syntax</a></li>
+<li><a href="#2-data-file-patterns">Data File Patterns</a></li>
+<li><a href="#3-mathematical-notation-to-ampl-translation">Mathematical Notation to AMPL Translation</a></li>
+<li><a href="#4-common-modeling-patterns">Common Modeling Patterns</a></li>
+<li><a href="#5-python-integration-with-amplpy">Python Integration with amplpy</a></li>
+<li><a href="#6-debugging-guide">Debugging Guide</a></li>
+<li><a href="#7-quick-reference-tables">Quick Reference Tables</a></li>
+</ol>
+<hr />
+<h2 id="core-syntax">1. Core Syntax</h2>
+<h3 id="sets">1.1 Sets</h3>
+<p>Sets define the indices used throughout your model.</p>
+<pre class="ampl"><code># Basic set (members defined in .dat file)
+set PRODUCTS;
+
+# Ordered set (enables prev, next, first, last)
+set MONTHS ordered;
+
+# Set with inline members
+set DAYS := {Mon, Tue, Wed, Thu, Fri};
+
+# Set of pairs (arcs in a network)
+set ARCS within {NODES, NODES};
+
+# Derived set with condition
+set ACTIVE := {j in PRODUCTS: demand[j] &gt; 0};
+
+# Cross product
+set ROUTES := ORIGINS cross DESTINATIONS;</code></pre>
+<p><strong>Key Functions for Sets:</strong></p>
+<ul>
+<li><code>card(S)</code> - Number of elements in set S</li>
+<li><code>ord(i)</code> - Position of element i in ordered set (1-based)</li>
+<li><code>first(S)</code> - First element of ordered set S</li>
+<li><code>last(S)</code> - Last element of ordered set S</li>
+<li><code>prev(i)</code> - Previous element before i in ordered set</li>
+<li><code>next(i)</code> - Next element after i in ordered set</li>
+<li><code>member(k,S)</code> - The k-th element of ordered set S</li>
+</ul>
+<h3 id="parameters">1.2 Parameters</h3>
+<p>Parameters are known constants (input data).</p>
+<pre class="ampl"><code># Scalar parameter
+param budget;
+
+# Indexed parameter
+param demand {PRODUCTS};
+
+# Two-dimensional parameter
+param cost {ORIGINS, DESTINATIONS};
+
+# Parameter with default value
+param min_order {PRODUCTS} default 0;
+
+# Parameter with inline definition
+param num_products := card(PRODUCTS);
+param total_demand := sum {j in PRODUCTS} demand[j];
+
+# Parameter with bounds check
+param capacity {MACHINES} &gt; 0;</code></pre>
+<h3 id="decision-variables">1.3 Decision Variables</h3>
+<p>Variables are what the solver determines.</p>
+<pre class="ampl"><code># Non-negative continuous variable
+var Produce {PRODUCTS} &gt;= 0;
+
+# Variable with upper bound
+var Ship {ORIGINS, DESTINATIONS} &gt;= 0, &lt;= capacity;
+
+# Variable with parameter bounds
+var Make {j in PRODUCTS} &gt;= min_prod[j], &lt;= max_prod[j];
+
+# Integer variable
+var Assign {WORKERS, TASKS} &gt;= 0 integer;
+
+# Binary variable
+var Select {PROJECTS} binary;
+
+# Free variable (can be negative)
+var Deviation {GOALS};</code></pre>
+<h3 id="objective-function">1.4 Objective Function</h3>
+<p>Every model has exactly one objective.</p>
+<pre class="ampl"><code># Maximization
+maximize Total_Profit:
+    sum {j in PRODUCTS} profit[j] * Produce[j];
+
+# Minimization
+minimize Total_Cost:
+    sum {i in ORIGINS, j in DESTINATIONS} cost[i,j] * Ship[i,j];
+
+# Multi-term objective
+minimize Total:
+    production_cost + inventory_cost + shortage_penalty;</code></pre>
+<h3 id="constraints">1.5 Constraints</h3>
+<p>Use <code>subject to</code> (or <code>s.t.</code>) to define constraints.</p>
+<pre class="ampl"><code># Single constraint
+subject to Budget_Limit:
+    sum {j in PRODUCTS} cost[j] * Produce[j] &lt;= budget;
+
+# Family of constraints (one per index)
+subject to Capacity {i in MACHINES}:
+    sum {j in PRODUCTS} time[i,j] * Produce[j] &lt;= available[i];
+
+# Equality constraint
+subject to Balance:
+    sum {i in ORIGINS} Supply[i] = sum {j in DESTINATIONS} Demand[j];
+
+# Constraint with conditional indexing
+subject to Min_Production {j in PRODUCTS: required[j] = 1}:
+    Produce[j] &gt;= min_qty[j];
+
+# Range constraint
+subject to Quality:
+    0.10 &lt;= sum {i in INGREDIENTS} protein[i] * Use[i] / total &lt;= 0.20;</code></pre>
+<h3 id="ordered-set-functions">1.6 Ordered Set Functions</h3>
+<p>For time-based or sequential models:</p>
+<pre class="ampl"><code>set PERIODS ordered;
+
+subject to Init_Balance:
+    Inventory[first(PERIODS)] = init_inv + Produce[first(PERIODS)] - demand[first(PERIODS)];
+
+subject to Balance {t in PERIODS: ord(t) &gt; 1}:
+    Inventory[t] = Inventory[prev(t)] + Produce[t] - demand[t];
+
+subject to Final_Inventory:
+    Inventory[last(PERIODS)] &gt;= safety_stock;</code></pre>
+<hr />
+<h2 id="data-file-patterns">2. Data File Patterns</h2>
+<h3 id="set-definitions">2.1 Set Definitions</h3>
+<pre class="ampl"><code># Simple set
+set PRODUCTS := Chairs Tables Desks;
+
+# Set on multiple lines
+set MONTHS := 
+    Jan Feb Mar Apr May Jun
+    Jul Aug Sep Oct Nov Dec;
+
+# Set of pairs
+set ARCS := (A,B) (A,C) (B,C) (B,D) (C,D);</code></pre>
+<h3 id="scalar-parameters">2.2 Scalar Parameters</h3>
+<pre class="ampl"><code>param budget := 50000;
+param tax_rate := 0.08;
+param planning_horizon := 12;</code></pre>
+<h3 id="one-dimensional-parameters">2.3 One-Dimensional Parameters</h3>
+<pre class="ampl"><code># List format
+param demand :=
+    Chairs   100
+    Tables   50
+    Desks    75;
+
+# Alternative: single line
+param supply := Seattle 400  Denver 300  Chicago 500;</code></pre>
+<h3 id="two-dimensional-parameters">2.4 Two-Dimensional Parameters</h3>
+<p><strong>Table Format (preferred for dense data):</strong></p>
+<pre class="ampl"><code>param cost:         Chicago  Denver  Seattle :=
+    Portland        2.5      1.8     1.2
+    Sacramento      2.8      2.0     1.5
+    LosAngeles      2.2      1.9     2.1;</code></pre>
+<p><strong>List Format (preferred for sparse data):</strong></p>
+<pre class="ampl"><code>param distance :=
+    [Portland, Chicago]     2000
+    [Portland, Denver]      1200
+    [Portland, Seattle]     175
+    [Sacramento, Chicago]   1850
+    [Sacramento, Denver]    1100;</code></pre>
+<p><strong>Transposed Table:</strong></p>
+<pre class="ampl"><code>param revenue (tr):   Q1    Q2    Q3    Q4 :=
+    ProductA          100   120   115   130
+    ProductB          200   180   195   210;</code></pre>
+<h3 id="multiple-parameters-in-one-table">2.5 Multiple Parameters in One Table</h3>
+<pre class="ampl"><code># Define multiple parameters sharing the same indices
+param:          demand    price    min_order :=
+    Chairs      100       45       10
+    Tables      50        120      5
+    Desks       75        200      5;</code></pre>
+<h3 id="sets-and-parameters-together">2.6 Sets and Parameters Together</h3>
+<pre class="ampl"><code># Define set members and parameter values together
+param: PRODUCTS: profit  cost :=
+    Chairs         25      15
+    Tables         60      40
+    Desks          50      35;</code></pre>
+<hr />
+<h2 id="mathematical-notation-to-ampl-translation">3. Mathematical Notation to AMPL Translation</h2>
+<h3 id="summations">3.1 Summations</h3>
+<table>
+<colgroup>
+<col style="width: 67%" />
+<col style="width: 32%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Mathematical Notation</th>
+<th style="text-align: left;">AMPL Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Sum of c_j * x_j over all j in J</td>
+<td style="text-align: left;"><code>sum {j in J} c[j] * x[j]</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Sum from i=1 to n of a_i</td>
+<td style="text-align: left;"><code>sum {i in 1..n} a[i]</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Conditional sum (only where d_j &gt; 0)</td>
+<td style="text-align: left;"><code>sum {j in J: d[j] &gt; 0} x[j]</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Double sum over i in I and j in J</td>
+<td style="text-align: left;"><code>sum {i in I, j in J} c[i,j] * x[i,j]</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Sum over arc pairs</td>
+<td style="text-align: left;"><code>sum {(i,j) in ARCS} x[i,j]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="constraints-1">3.2 Constraints</h3>
+<table>
+<colgroup>
+<col style="width: 63%" />
+<col style="width: 36%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Mathematical Form</th>
+<th style="text-align: left;">AMPL Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Sum of a_ij * x_j &lt;= b_i for all i</td>
+<td style="text-align: left;"><code>subject to Con {i in I}: sum {j in J} a[i,j]*x[j] &lt;= b[i];</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">x_j &gt;= 0 for all j</td>
+<td style="text-align: left;"><code>var x {J} &gt;= 0;</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Sum of x_j = 1</td>
+<td style="text-align: left;"><code>subject to Total: sum {j in J} x[j] = 1;</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">l_j &lt;= x_j &lt;= u_j</td>
+<td style="text-align: left;"><code>var x {j in J} &gt;= l[j], &lt;= u[j];</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">x_j is binary (0 or 1)</td>
+<td style="text-align: left;"><code>var x {J} binary;</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">x_j is non-negative integer</td>
+<td style="text-align: left;"><code>var x {J} &gt;= 0 integer;</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="common-formulation-patterns">3.3 Common Formulation Patterns</h3>
+<p><strong>Resource Constraint:</strong></p>
+<pre class="ampl"><code># Math: sum_{j in J} a_ij * x_j &lt;= b_i for all i in I
+subject to Resource {i in RESOURCES}:
+    sum {j in PRODUCTS} usage[i,j] * Produce[j] &lt;= available[i];</code></pre>
+<p><strong>Demand Satisfaction:</strong></p>
+<pre class="ampl"><code># Math: sum_{i in I} x_ij &gt;= d_j for all j in J
+subject to Demand {j in CUSTOMERS}:
+    sum {i in SUPPLIERS} Ship[i,j] &gt;= demand[j];</code></pre>
+<p><strong>Flow Balance:</strong></p>
+<pre class="ampl"><code># Math: sum_{j:(i,j) in A} x_ij - sum_{j:(j,i) in A} x_ji = b_i for all i
+subject to Balance {i in NODES}:
+    sum {(i,j) in ARCS} Flow[i,j] - sum {(j,i) in ARCS} Flow[j,i] = supply[i];</code></pre>
+<p><strong>Inventory Balance:</strong></p>
+<pre class="ampl"><code># Math: I_t = I_{t-1} + P_t - D_t for all t &gt; 1
+subject to Inv_Balance {t in PERIODS: ord(t) &gt; 1}:
+    Inventory[t] = Inventory[prev(t)] + Production[t] - demand[t];</code></pre>
+<p><strong>Big-M Constraint (Linking):</strong></p>
+<pre class="ampl"><code># Math: x_j &lt;= M * y_j (if y=0, then x must be 0)
+subject to Linking {j in FACILITIES}:
+    Production[j] &lt;= big_M * Open[j];</code></pre>
+<hr />
+<h2 id="common-modeling-patterns">4. Common Modeling Patterns</h2>
+<h3 id="resource-allocation">4.1 Resource Allocation</h3>
+<pre class="ampl"><code>set PRODUCTS;
+set RESOURCES;
+param profit {PRODUCTS};
+param usage {RESOURCES, PRODUCTS};
+param available {RESOURCES};
+
+var Produce {PRODUCTS} &gt;= 0;
+
+maximize Total_Profit:
+    sum {j in PRODUCTS} profit[j] * Produce[j];
+
+subject to Capacity {i in RESOURCES}:
+    sum {j in PRODUCTS} usage[i,j] * Produce[j] &lt;= available[i];</code></pre>
+<h3 id="blending-mixing">4.2 Blending / Mixing</h3>
+<pre class="ampl"><code>set INGREDIENTS;
+set QUALITIES;
+param cost {INGREDIENTS};
+param composition {QUALITIES, INGREDIENTS};
+param min_quality {QUALITIES};
+param max_quality {QUALITIES};
+param total_amount;
+
+var Use {INGREDIENTS} &gt;= 0;
+
+minimize Total_Cost:
+    sum {i in INGREDIENTS} cost[i] * Use[i];
+
+subject to Total:
+    sum {i in INGREDIENTS} Use[i] = total_amount;
+
+subject to Min_Qual {q in QUALITIES}:
+    sum {i in INGREDIENTS} composition[q,i] * Use[i] &gt;= min_quality[q] * total_amount;
+
+subject to Max_Qual {q in QUALITIES}:
+    sum {i in INGREDIENTS} composition[q,i] * Use[i] &lt;= max_quality[q] * total_amount;</code></pre>
+<h3 id="transportation">4.3 Transportation</h3>
+<pre class="ampl"><code>set ORIGINS;
+set DESTINATIONS;
+param supply {ORIGINS};
+param demand {DESTINATIONS};
+param cost {ORIGINS, DESTINATIONS};
+
+var Ship {ORIGINS, DESTINATIONS} &gt;= 0;
+
+minimize Total_Cost:
+    sum {i in ORIGINS, j in DESTINATIONS} cost[i,j] * Ship[i,j];
+
+subject to Supply {i in ORIGINS}:
+    sum {j in DESTINATIONS} Ship[i,j] &lt;= supply[i];
+
+subject to Demand {j in DESTINATIONS}:
+    sum {i in ORIGINS} Ship[i,j] &gt;= demand[j];</code></pre>
+<h3 id="assignment">4.4 Assignment</h3>
+<pre class="ampl"><code>set WORKERS;
+set TASKS;
+param cost {WORKERS, TASKS};
+
+var Assign {WORKERS, TASKS} binary;
+
+minimize Total_Cost:
+    sum {w in WORKERS, t in TASKS} cost[w,t] * Assign[w,t];
+
+subject to One_Task_Per_Worker {w in WORKERS}:
+    sum {t in TASKS} Assign[w,t] = 1;
+
+subject to One_Worker_Per_Task {t in TASKS}:
+    sum {w in WORKERS} Assign[w,t] = 1;</code></pre>
+<h3 id="multi-period-production-planning">4.5 Multi-Period Production Planning</h3>
+<pre class="ampl"><code>set PERIODS ordered;
+param demand {PERIODS};
+param prod_cost {PERIODS};
+param hold_cost {PERIODS};
+param max_production {PERIODS};
+param init_inventory;
+
+var Produce {t in PERIODS} &gt;= 0, &lt;= max_production[t];
+var Inventory {PERIODS} &gt;= 0;
+
+minimize Total_Cost:
+    sum {t in PERIODS} (prod_cost[t] * Produce[t] + hold_cost[t] * Inventory[t]);
+
+subject to Init_Balance:
+    Inventory[first(PERIODS)] = init_inventory + Produce[first(PERIODS)] - demand[first(PERIODS)];
+
+subject to Balance {t in PERIODS: ord(t) &gt; 1}:
+    Inventory[t] = Inventory[prev(t)] + Produce[t] - demand[t];</code></pre>
+<h3 id="facility-location">4.6 Facility Location</h3>
+<pre class="ampl"><code>set FACILITIES;
+set CUSTOMERS;
+param fixed_cost {FACILITIES};
+param variable_cost {FACILITIES, CUSTOMERS};
+param demand {CUSTOMERS};
+param capacity {FACILITIES};
+
+var Open {FACILITIES} binary;
+var Serve {FACILITIES, CUSTOMERS} &gt;= 0;
+
+minimize Total_Cost:
+    sum {i in FACILITIES} fixed_cost[i] * Open[i] +
+    sum {i in FACILITIES, j in CUSTOMERS} variable_cost[i,j] * Serve[i,j];
+
+subject to Meet_Demand {j in CUSTOMERS}:
+    sum {i in FACILITIES} Serve[i,j] &gt;= demand[j];
+
+subject to Facility_Capacity {i in FACILITIES}:
+    sum {j in CUSTOMERS} Serve[i,j] &lt;= capacity[i] * Open[i];</code></pre>
+<hr />
+<h2 id="python-integration-with-amplpy">5. Python Integration with amplpy</h2>
+<h3 id="setup-in-google-colab">5.1 Setup in Google Colab</h3>
+<div class="sourceCode" id="cb26"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="op">!</span>pip install <span class="op">-</span>q amplpy</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> amplpy <span class="im">import</span> AMPL, ampl_notebook</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize with license and solvers</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>ampl_notebook(</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    modules<span class="op">=</span>[<span class="st">&quot;highs&quot;</span>],  <span class="co"># Add &quot;gurobi&quot;, &quot;cplex&quot; if available</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    license_uuid<span class="op">=</span><span class="st">&quot;your-license-uuid&quot;</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<h3 id="basic-workflow">5.2 Basic Workflow</h3>
+<div class="sourceCode" id="cb27"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create model instance</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> AMPL()</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Load model and data files</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>model.read(<span class="st">&#39;mymodel.mod&#39;</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>model.read_data(<span class="st">&#39;mydata.dat&#39;</span>)</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Set solver and solve</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;solver&#39;</span>] <span class="op">=</span> <span class="st">&#39;highs&#39;</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>model.solve()</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Check status</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>status <span class="op">=</span> model.get_value(<span class="st">&#39;solve_result&#39;</span>)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Status: </span><span class="sc">{</span>status<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<h3 id="accessing-results">5.3 Accessing Results</h3>
+<div class="sourceCode" id="cb28"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Objective value</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>obj_value <span class="op">=</span> model.obj[<span class="st">&#39;Total_Cost&#39;</span>].value()</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Variable values</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> model.var[<span class="st">&#39;Produce&#39;</span>]</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> j <span class="kw">in</span> model.<span class="bu">set</span>[<span class="st">&#39;PRODUCTS&#39;</span>].members():</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>x[j]<span class="sc">.</span>value()<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Get as pandas DataFrame</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> model.var[<span class="st">&#39;Ship&#39;</span>].get_values().to_pandas()</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Constraint dual values (shadow prices)</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>shadow <span class="op">=</span> model.con[<span class="st">&#39;Capacity&#39;</span>][<span class="st">&#39;Labor&#39;</span>].dual()</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Constraint body (LHS value)</span></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>used <span class="op">=</span> model.con[<span class="st">&#39;Capacity&#39;</span>][<span class="st">&#39;Labor&#39;</span>].body()</span></code></pre></div>
+<h3 id="injecting-data-from-python">5.4 Injecting Data from Python</h3>
+<div class="sourceCode" id="cb29"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set members</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>model.<span class="bu">set</span>[<span class="st">&#39;PRODUCTS&#39;</span>] <span class="op">=</span> [<span class="st">&#39;A&#39;</span>, <span class="st">&#39;B&#39;</span>, <span class="st">&#39;C&#39;</span>]</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Scalar parameter</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>model.param[<span class="st">&#39;budget&#39;</span>] <span class="op">=</span> <span class="dv">50000</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Indexed parameter (dict)</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>model.param[<span class="st">&#39;demand&#39;</span>] <span class="op">=</span> {<span class="st">&#39;A&#39;</span>: <span class="dv">100</span>, <span class="st">&#39;B&#39;</span>: <span class="dv">150</span>, <span class="st">&#39;C&#39;</span>: <span class="dv">200</span>}</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Two-dimensional parameter</span></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>costs <span class="op">=</span> {</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Plant1&#39;</span>, <span class="st">&#39;Customer1&#39;</span>): <span class="dv">10</span>,</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Plant1&#39;</span>, <span class="st">&#39;Customer2&#39;</span>): <span class="dv">15</span>,</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Plant2&#39;</span>, <span class="st">&#39;Customer1&#39;</span>): <span class="dv">12</span>,</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Plant2&#39;</span>, <span class="st">&#39;Customer2&#39;</span>): <span class="dv">8</span>,</span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>model.param[<span class="st">&#39;cost&#39;</span>] <span class="op">=</span> costs</span></code></pre></div>
+<h3 id="modifying-and-re-solving">5.5 Modifying and Re-solving</h3>
+<div class="sourceCode" id="cb30"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Change a parameter value</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>model.param[<span class="st">&#39;budget&#39;</span>] <span class="op">=</span> <span class="dv">60000</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Re-solve (no need to reload model)</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>model.solve()</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Reset to clear everything</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>model.reset()</span></code></pre></div>
+<h3 id="sensitivity-analysis-loop">5.6 Sensitivity Analysis Loop</h3>
+<div class="sourceCode" id="cb31"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> []</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> budget <span class="kw">in</span> [<span class="dv">40000</span>, <span class="dv">50000</span>, <span class="dv">60000</span>, <span class="dv">70000</span>]:</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    scenario <span class="op">=</span> AMPL()</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    scenario.read(<span class="st">&#39;model.mod&#39;</span>)</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    scenario.read_data(<span class="st">&#39;data.dat&#39;</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    scenario.param[<span class="st">&#39;budget&#39;</span>] <span class="op">=</span> budget</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    scenario.option[<span class="st">&#39;solver&#39;</span>] <span class="op">=</span> <span class="st">&#39;highs&#39;</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    scenario.solve()</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>    results.append({</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">&#39;budget&#39;</span>: budget,</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&#39;profit&#39;</span>: scenario.obj[<span class="st">&#39;Profit&#39;</span>].value(),</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">&#39;status&#39;</span>: scenario.get_value(<span class="st">&#39;solve_result&#39;</span>)</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>df_results <span class="op">=</span> pd.DataFrame(results)</span></code></pre></div>
+<hr />
+<h2 id="debugging-guide">6. Debugging Guide</h2>
+<h3 id="common-syntax-errors">6.1 Common Syntax Errors</h3>
+<table>
+<colgroup>
+<col style="width: 44%" />
+<col style="width: 41%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Error Message</th>
+<th style="text-align: left;">Likely Cause</th>
+<th style="text-align: left;">Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>syntax error</code></td>
+<td style="text-align: left;">Missing semicolon</td>
+<td style="text-align: left;">Add <code>;</code> at end of statement</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>X is not defined</code></td>
+<td style="text-align: left;">Using before declaring</td>
+<td style="text-align: left;">Move declaration before use</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>X is already defined</code></td>
+<td style="text-align: left;">Duplicate declaration</td>
+<td style="text-align: left;">Remove duplicate</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>invalid subscript</code></td>
+<td style="text-align: left;">Wrong indices</td>
+<td style="text-align: left;">Check set membership</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>no value for X</code></td>
+<td style="text-align: left;">Missing data</td>
+<td style="text-align: left;">Add to .dat file</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-errors">6.2 Model Errors</h3>
+<p><strong>Infeasible Problem:</strong> - Check for conflicting constraints (e.g., demand &gt; supply) - Verify data values are correct - Look for typos in constraint definitions - Add slack variables to identify which constraints conflict</p>
+<p><strong>Unbounded Problem:</strong> - Missing constraints (e.g., no capacity limit) - Variable bounds missing - Objective coefficient sign error</p>
+<h3 id="data-file-errors">6.3 Data File Errors</h3>
+<table>
+<colgroup>
+<col style="width: 36%" />
+<col style="width: 36%" />
+<col style="width: 26%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Cause</th>
+<th style="text-align: left;">Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>unexpected end of file</code></td>
+<td style="text-align: left;">Missing semicolon</td>
+<td style="text-align: left;">Add <code>;</code> after data block</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>X is not a member</code></td>
+<td style="text-align: left;">Typo in set member</td>
+<td style="text-align: left;">Match exact spelling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>too few values</code></td>
+<td style="text-align: left;">Missing data rows</td>
+<td style="text-align: left;">Complete the table</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>too many values</code></td>
+<td style="text-align: left;">Extra data</td>
+<td style="text-align: left;">Remove duplicates</td>
+</tr>
+</tbody>
+</table>
+<h3 id="debugging-commands">6.4 Debugging Commands</h3>
+<pre class="ampl"><code># Display model structure
+display PRODUCTS;
+display demand;
+display Produce;
+
+# Show expanded constraints
+expand Capacity;
+expand Capacity[&#39;Labor&#39;];
+
+# Show current variable values
+display {j in PRODUCTS} Produce[j];
+
+# Check constraint values
+display {i in RESOURCES} Capacity[i].body, Capacity[i].slack;</code></pre>
+<h3 id="python-debugging">6.5 Python Debugging</h3>
+<div class="sourceCode" id="cb33"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if data loaded correctly</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">list</span>(model.<span class="bu">set</span>[<span class="st">&#39;PRODUCTS&#39;</span>].members()))</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.param[<span class="st">&#39;demand&#39;</span>][<span class="st">&#39;A&#39;</span>])</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Examine solve output</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;solver_msg&#39;</span>] <span class="op">=</span> <span class="dv">1</span>  <span class="co"># Enable solver messages</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>model.solve()</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Get solve status details</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.get_value(<span class="st">&#39;solve_result&#39;</span>))</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.get_value(<span class="st">&#39;solve_message&#39;</span>))</span></code></pre></div>
+<hr />
+<h2 id="quick-reference-tables">7. Quick Reference Tables</h2>
+<h3 id="arithmetic-operators">7.1 Arithmetic Operators</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operator</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>+</code></td>
+<td style="text-align: left;">Addition</td>
+<td style="text-align: left;"><code>a + b</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>-</code></td>
+<td style="text-align: left;">Subtraction</td>
+<td style="text-align: left;"><code>a - b</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>*</code></td>
+<td style="text-align: left;">Multiplication</td>
+<td style="text-align: left;"><code>a * b</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/</code></td>
+<td style="text-align: left;">Division</td>
+<td style="text-align: left;"><code>a / b</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>^</code></td>
+<td style="text-align: left;">Exponentiation</td>
+<td style="text-align: left;"><code>a ^ 2</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>mod</code></td>
+<td style="text-align: left;">Modulo</td>
+<td style="text-align: left;"><code>a mod b</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>div</code></td>
+<td style="text-align: left;">Integer division</td>
+<td style="text-align: left;"><code>a div b</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="built-in-functions">7.2 Built-in Functions</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Function</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>abs(x)</code></td>
+<td style="text-align: left;">Absolute value</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>max(a,b)</code></td>
+<td style="text-align: left;">Maximum of two values</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>min(a,b)</code></td>
+<td style="text-align: left;">Minimum of two values</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>round(x)</code></td>
+<td style="text-align: left;">Round to nearest integer</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>floor(x)</code></td>
+<td style="text-align: left;">Round down</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ceil(x)</code></td>
+<td style="text-align: left;">Round up</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sqrt(x)</code></td>
+<td style="text-align: left;">Square root</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exp(x)</code></td>
+<td style="text-align: left;">Exponential</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log(x)</code></td>
+<td style="text-align: left;">Natural logarithm</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log10(x)</code></td>
+<td style="text-align: left;">Base-10 logarithm</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-operators">7.3 Comparison Operators</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operator</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>=</code></td>
+<td style="text-align: left;">Equal</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;&gt;</code> or <code>!=</code></td>
+<td style="text-align: left;">Not equal</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;</code></td>
+<td style="text-align: left;">Less than</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;=</code></td>
+<td style="text-align: left;">Less than or equal</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&gt;</code></td>
+<td style="text-align: left;">Greater than</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&gt;=</code></td>
+<td style="text-align: left;">Greater than or equal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logical-operators">7.4 Logical Operators</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operator</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>and</code></td>
+<td style="text-align: left;">Logical AND</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>or</code></td>
+<td style="text-align: left;">Logical OR</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>not</code></td>
+<td style="text-align: left;">Logical NOT</td>
+</tr>
+</tbody>
+</table>
+<h3 id="set-operations">7.5 Set Operations</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operation</th>
+<th style="text-align: left;">Syntax</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Union</td>
+<td style="text-align: left;"><code>A union B</code></td>
+<td style="text-align: left;">All elements in A or B</td>
+</tr>
+<tr>
+<td style="text-align: left;">Intersection</td>
+<td style="text-align: left;"><code>A inter B</code></td>
+<td style="text-align: left;">Elements in both A and B</td>
+</tr>
+<tr>
+<td style="text-align: left;">Difference</td>
+<td style="text-align: left;"><code>A diff B</code></td>
+<td style="text-align: left;">Elements in A but not B</td>
+</tr>
+<tr>
+<td style="text-align: left;">Symmetric diff</td>
+<td style="text-align: left;"><code>A symdiff B</code></td>
+<td style="text-align: left;">Elements in exactly one</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cross product</td>
+<td style="text-align: left;"><code>A cross B</code></td>
+<td style="text-align: left;">All pairs (a,b)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Membership</td>
+<td style="text-align: left;"><code>i in A</code></td>
+<td style="text-align: left;">True if i is in A</td>
+</tr>
+<tr>
+<td style="text-align: left;">Subset</td>
+<td style="text-align: left;"><code>A within B</code></td>
+<td style="text-align: left;">A is subset of B</td>
+</tr>
+</tbody>
+</table>
+<h3 id="solver-status-codes">7.6 Solver Status Codes</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Status</th>
+<th style="text-align: left;">Meaning</th>
+<th style="text-align: left;">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>solved</code></td>
+<td style="text-align: left;">Optimal solution found</td>
+<td style="text-align: left;">Extract results</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>infeasible</code></td>
+<td style="text-align: left;">No feasible solution</td>
+<td style="text-align: left;">Check constraints</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>unbounded</code></td>
+<td style="text-align: left;">Objective unbounded</td>
+<td style="text-align: left;">Add constraints</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>limit</code></td>
+<td style="text-align: left;">Hit iteration/time limit</td>
+<td style="text-align: left;">Increase limits</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>failure</code></td>
+<td style="text-align: left;">Solver error</td>
+<td style="text-align: left;">Check model/data</td>
+</tr>
+</tbody>
+</table>
+<h3 id="common-solver-options">7.7 Common Solver Options</h3>
+<div class="sourceCode" id="cb34"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Solver selection</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;solver&#39;</span>] <span class="op">=</span> <span class="st">&#39;highs&#39;</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Time limit (seconds)</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;highs_options&#39;</span>] <span class="op">=</span> <span class="st">&#39;timelimit=300&#39;</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Optimality tolerance</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;highs_options&#39;</span>] <span class="op">=</span> <span class="st">&#39;mip_rel_gap=0.01&#39;</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Display level</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>model.option[<span class="st">&#39;solver_msg&#39;</span>] <span class="op">=</span> <span class="dv">1</span></span></code></pre></div>
+<hr />
+<h2 id="additional-resources">Additional Resources</h2>
+<ul>
+<li><strong>AMPL Book (Free PDF)</strong>: https://ampl.com/wp-content/uploads/BOOK.pdf</li>
+<li><strong>AMPL Documentation</strong>: https://dev.ampl.com</li>
+<li><strong>amplpy Python API</strong>: https://amplpy.ampl.com</li>
+<li><strong>Free Academic License</strong>: https://ampl.com/ce or https://ampl.com/courses</li>
+<li><strong>Support Forum</strong>: https://discuss.ampl.com</li>
+</ul>
+<hr />
+<p><em>Last updated: February 2026</em></p>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

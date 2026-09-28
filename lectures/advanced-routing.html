@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="advanced-routing.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows">ISYE 671: Linear Optimization and Network Flows</h1>
+<h1 id="lecture-notes-advanced-routing-and-combinatorial-models">Lecture Notes — Advanced Routing and Combinatorial Models</h1>
+<p><strong>Northern Illinois University — Spring 2026</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="introduction-and-motivation">1. Introduction and Motivation</h2>
+<p>In earlier lectures, we studied network flow models — shortest path, max flow, MCNF, transportation, and assignment — where the underlying structure is a flow on arcs. We also studied integer programming models for facility location, set covering, capital budgeting, and scheduling.</p>
+<p>In this lecture, we turn to a family of <strong>combinatorial optimization problems</strong> that combine integer programming with network structure: <em>routing problems</em>. These problems ask us to find optimal tours or routes through a network, subject to various operational constraints. They arise naturally in logistics, supply chain, manufacturing, and healthcare.</p>
+<p>The central models are:</p>
+<ul>
+<li><strong>Travelling Salesman Problem (TSP)</strong>: Find the shortest tour visiting every city exactly once.</li>
+<li><strong>Vehicle Routing Problem (VRP)</strong>: Partition customers among vehicles and route each vehicle optimally.</li>
+<li><strong>Variants</strong>: Time windows, pickup-and-delivery, capacitated routing, split deliveries.</li>
+</ul>
+<p>These problems are among the most studied in operations research and combinatorial optimization. They are NP-hard in general, meaning no known polynomial-time algorithm exists. Yet, modern MIP solvers (such as Gurobi, invoked through AMPL) can solve practical instances of moderate size, and understanding the formulations is essential for modeling real systems.</p>
+<blockquote>
+<p><strong>Connection to prior material</strong>: TSP can be viewed as an <em>assignment problem</em> (which we studied in network flows) with additional constraints that prevent disconnected subtours. VRP extends TSP by incorporating <em>capacity constraints</em> similar to those in our facility location models.</p>
+</blockquote>
+<hr />
+<h2 id="the-travelling-salesman-problem-tsp">2. The Travelling Salesman Problem (TSP)</h2>
+<h3 id="problem-statement">2.1 Problem Statement</h3>
+<p>Given a set of <span class="math inline">\(n\)</span> cities and a distance (or cost) matrix <span class="math inline">\(c_{ij}\)</span> representing the cost of travelling from city <span class="math inline">\(i\)</span> to city <span class="math inline">\(j\)</span>, find a <strong>Hamiltonian cycle</strong> — a tour that visits every city exactly once and returns to the starting city — of minimum total cost.</p>
+<p><strong>Example (Rardin-style)</strong>: A medical equipment service technician based in Chicago must visit hospitals in Rockford, DeKalb, Aurora, Joliet, and Kankakee for quarterly maintenance. Each trip must start and end in Chicago. The technician wants to minimize total driving distance.</p>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>Chicago</th>
+<th>Rockford</th>
+<th>DeKalb</th>
+<th>Aurora</th>
+<th>Joliet</th>
+<th>Kankakee</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chicago</td>
+<td>—</td>
+<td>89</td>
+<td>66</td>
+<td>41</td>
+<td>46</td>
+<td>60</td>
+</tr>
+<tr>
+<td>Rockford</td>
+<td>89</td>
+<td>—</td>
+<td>52</td>
+<td>72</td>
+<td>108</td>
+<td>141</td>
+</tr>
+<tr>
+<td>DeKalb</td>
+<td>66</td>
+<td>52</td>
+<td>—</td>
+<td>35</td>
+<td>80</td>
+<td>112</td>
+</tr>
+<tr>
+<td>Aurora</td>
+<td>41</td>
+<td>72</td>
+<td>35</td>
+<td>—</td>
+<td>48</td>
+<td>85</td>
+</tr>
+<tr>
+<td>Joliet</td>
+<td>46</td>
+<td>108</td>
+<td>80</td>
+<td>48</td>
+<td>—</td>
+<td>42</td>
+</tr>
+<tr>
+<td>Kankakee</td>
+<td>60</td>
+<td>141</td>
+<td>112</td>
+<td>85</td>
+<td>42</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="assignment-based-formulation-with-subtour-elimination">2.2 Assignment-Based Formulation (with Subtour Elimination)</h3>
+<p><strong>Decision Variables:</strong></p>
+<p><span class="math display">\[x_{ij} = \begin{cases} 1 &amp; \text{if the tour travels directly from city } i \text{ to city } j \\ 0 &amp; \text{otherwise} \end{cases}\]</span></p>
+<p>for all <span class="math inline">\(i, j \in \{1, 2, \ldots, n\}\)</span>, <span class="math inline">\(i \neq j\)</span>.</p>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[\min \sum_{i=1}^{n} \sum_{\substack{j=1 \\ j \neq i}}^{n} c_{ij} \, x_{ij}\]</span></p>
+<p>Subject to:</p>
+<p><span class="math display">\[\sum_{\substack{j=1 \\ j \neq i}}^{n} x_{ij} = 1 \quad \forall \, i = 1, \ldots, n \qquad \text{(leave each city exactly once)}\]</span></p>
+<p><span class="math display">\[\sum_{\substack{i=1 \\ i \neq j}}^{n} x_{ij} = 1 \quad \forall \, j = 1, \ldots, n \qquad \text{(enter each city exactly once)}\]</span></p>
+<p><span class="math display">\[x_{ij} \in \{0, 1\} \quad \forall \, i \neq j\]</span></p>
+<p><strong>Why this is not enough</strong>: Without additional constraints, the formulation is simply an <em>assignment problem</em> on a bipartite graph. The optimal solution may contain <strong>subtours</strong> — disconnected cycles that cover all cities but do not form a single connected tour.</p>
+<p>For instance, with 6 cities, the assignment solution might return two separate loops: <span class="math inline">\((1 \to 3 \to 5 \to 1)\)</span> and <span class="math inline">\((2 \to 4 \to 6 \to 2)\)</span>. Each city is visited once, but the solution is not a valid tour.</p>
+<h3 id="subtour-elimination-constraints">2.3 Subtour Elimination Constraints</h3>
+<p>There are two classical approaches to eliminating subtours.</p>
+<p><strong>Approach 1: Dantzig–Fulkerson–Johnson (DFJ) Subtour Elimination</strong></p>
+<p>For every proper subset <span class="math inline">\(S \subset \{1, \ldots, n\}\)</span> with <span class="math inline">\(2 \leq |S| \leq n - 2\)</span>:</p>
+<p><span class="math display">\[\sum_{i \in S} \sum_{j \in S, \, j \neq i} x_{ij} \leq |S| - 1\]</span></p>
+<p>This says: within any subset of cities, the number of arcs used cannot form a complete cycle through that subset. An equivalent form requires at least one arc leaving every proper subset:</p>
+<p><span class="math display">\[\sum_{i \in S} \sum_{j \notin S} x_{ij} \geq 1 \quad \forall \, S \subset \{1, \ldots, n\}, \; 2 \leq |S| \leq n-2\]</span></p>
+<p><strong>Disadvantage</strong>: The number of subsets grows exponentially (<span class="math inline">\(2^n - 2n - 2\)</span> constraints). For even moderate <span class="math inline">\(n\)</span>, we cannot enumerate all of them upfront. In practice, these are added <em>lazily</em> — solve without them, check for subtours, add the violated constraint, and re-solve. This is called a <strong>cutting plane</strong> or <strong>callback</strong> approach.</p>
+<p><strong>Approach 2: Miller–Tucker–Zemlin (MTZ) Formulation</strong></p>
+<p>Introduce auxiliary variables <span class="math inline">\(u_i\)</span> for <span class="math inline">\(i = 2, \ldots, n\)</span> representing the <em>position</em> of city <span class="math inline">\(i\)</span> in the tour:</p>
+<p><span class="math display">\[u_i - u_j + n \cdot x_{ij} \leq n - 1 \quad \forall \, i, j \in \{2, \ldots, n\}, \; i \neq j\]</span></p>
+<p><span class="math display">\[1 \leq u_i \leq n - 1 \quad \forall \, i = 2, \ldots, n\]</span></p>
+<p><strong>Interpretation</strong>: If city <span class="math inline">\(i\)</span> is visited immediately before city <span class="math inline">\(j\)</span> (i.e., <span class="math inline">\(x_{ij} = 1\)</span>), then <span class="math inline">\(u_i - u_j \leq -1\)</span>, forcing <span class="math inline">\(u_j \geq u_i + 1\)</span>. This imposes a sequencing order that prevents subtours not passing through city 1. City 1 is the designated depot and does not need a <span class="math inline">\(u\)</span> variable.</p>
+<p><strong>Advantage</strong>: Polynomial number of constraints (<span class="math inline">\(O(n^2)\)</span>), so the model can be written out completely.</p>
+<p><strong>Disadvantage</strong>: The LP relaxation of MTZ is typically much weaker than DFJ, leading to slower solution times for larger instances.</p>
+<blockquote>
+<p><strong>For this course</strong>: We will use the MTZ formulation for computational exercises because it is self-contained and can be directly implemented in AMPL without callbacks. Be aware that for large instances, DFJ with lazy constraints (or specialized TSP solvers) is preferred in practice.</p>
+</blockquote>
+<h3 id="complete-mtz-tsp-formulation">2.4 Complete MTZ-TSP Formulation</h3>
+<p><span class="math display">\[\min \sum_{i=1}^{n} \sum_{\substack{j=1 \\ j \neq i}}^{n} c_{ij} \, x_{ij}\]</span></p>
+<p>Subject to:</p>
+<p><span class="math display">\[\sum_{\substack{j=1 \\ j \neq i}}^{n} x_{ij} = 1 \quad \forall \, i\]</span></p>
+<p><span class="math display">\[\sum_{\substack{i=1 \\ i \neq j}}^{n} x_{ij} = 1 \quad \forall \, j\]</span></p>
+<p><span class="math display">\[u_i - u_j + n \cdot x_{ij} \leq n - 1 \quad \forall \, i, j \in \{2, \ldots, n\}, \; i \neq j\]</span></p>
+<p><span class="math display">\[1 \leq u_i \leq n - 1 \quad \forall \, i = 2, \ldots, n\]</span></p>
+<p><span class="math display">\[x_{ij} \in \{0, 1\} \quad \forall \, i \neq j\]</span></p>
+<h3 id="worked-example-illinois-service-tour">2.5 Worked Example: Illinois Service Tour</h3>
+<p>Applying the MTZ formulation to our 6-city example:</p>
+<ul>
+<li><strong>Variables</strong>: <span class="math inline">\(6 \times 5 = 30\)</span> binary <span class="math inline">\(x_{ij}\)</span> variables, plus 5 continuous <span class="math inline">\(u_i\)</span> variables.</li>
+<li><strong>Constraints</strong>: 6 outflow + 6 inflow + <span class="math inline">\(5 \times 4 = 20\)</span> MTZ + 5 bound constraints = 37 constraints.</li>
+<li><strong>Optimal tour</strong>: Chicago → Aurora → DeKalb → Rockford → (return via) Chicago, then Joliet → Kankakee (exact tour depends on data). The solver finds the minimum-distance Hamiltonian cycle.</li>
+</ul>
+<p><em>(The full AMPL implementation is provided in the companion Colab notebook.)</em></p>
+<hr />
+<h2 id="the-vehicle-routing-problem-vrp">3. The Vehicle Routing Problem (VRP)</h2>
+<h3 id="problem-statement-1">3.1 Problem Statement</h3>
+<p>The VRP generalizes the TSP to multiple vehicles. Given:</p>
+<ul>
+<li>A depot (node 0) and <span class="math inline">\(n\)</span> customer nodes <span class="math inline">\(\{1, 2, \ldots, n\}\)</span></li>
+<li>A fleet of <span class="math inline">\(K\)</span> vehicles, each with capacity <span class="math inline">\(Q\)</span></li>
+<li>Customer demands <span class="math inline">\(d_i\)</span> for each customer <span class="math inline">\(i\)</span></li>
+<li>Travel costs <span class="math inline">\(c_{ij}\)</span> between all pairs of nodes</li>
+</ul>
+<p>Find <span class="math inline">\(K\)</span> routes, each starting and ending at the depot, such that every customer is visited exactly once, no vehicle exceeds its capacity, and total travel cost is minimized.</p>
+<p><strong>Example</strong>: A regional food bank operates 3 delivery trucks, each capable of carrying 2,000 lbs. There are 12 partner pantries across northern Illinois, each requesting between 200 and 600 lbs of food. The food bank wants to minimize total fuel costs while ensuring every pantry is served.</p>
+<h3 id="capacitated-vrp-cvrp-formulation">3.2 Capacitated VRP (CVRP) Formulation</h3>
+<p><strong>Sets:</strong></p>
+<ul>
+<li><span class="math inline">\(V = \{0, 1, \ldots, n\}\)</span>: all nodes (0 = depot)</li>
+<li><span class="math inline">\(V&#39; = \{1, \ldots, n\}\)</span>: customer nodes only</li>
+<li><span class="math inline">\(K\)</span>: number of vehicles (indexed by <span class="math inline">\(k = 1, \ldots, K\)</span>)</li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><span class="math inline">\(c_{ij}\)</span>: travel cost from node <span class="math inline">\(i\)</span> to node <span class="math inline">\(j\)</span></li>
+<li><span class="math inline">\(d_i\)</span>: demand of customer <span class="math inline">\(i\)</span> (with <span class="math inline">\(d_0 = 0\)</span>)</li>
+<li><span class="math inline">\(Q\)</span>: vehicle capacity</li>
+</ul>
+<p><strong>Decision Variables:</strong></p>
+<p><span class="math display">\[x_{ijk} = \begin{cases} 1 &amp; \text{if vehicle } k \text{ travels directly from } i \text{ to } j \\ 0 &amp; \text{otherwise} \end{cases}\]</span></p>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[\min \sum_{k=1}^{K} \sum_{i \in V} \sum_{\substack{j \in V \\ j \neq i}} c_{ij} \, x_{ijk}\]</span></p>
+<p>Subject to:</p>
+<p><span class="math display">\[\sum_{k=1}^{K} \sum_{\substack{j \in V \\ j \neq i}} x_{ijk} = 1 \quad \forall \, i \in V&#39; \qquad \text{(each customer visited once)}\]</span></p>
+<p><span class="math display">\[\sum_{j \in V&#39;} x_{0jk} = 1 \quad \forall \, k = 1, \ldots, K \qquad \text{(each vehicle leaves depot)}\]</span></p>
+<p><span class="math display">\[\sum_{i \in V&#39;} x_{i0k} = 1 \quad \forall \, k = 1, \ldots, K \qquad \text{(each vehicle returns to depot)}\]</span></p>
+<p><span class="math display">\[\sum_{\substack{i \in V \\ i \neq j}} x_{ijk} - \sum_{\substack{i \in V \\ i \neq j}} x_{jik} = 0 \quad \forall \, j \in V&#39;, \; \forall \, k \qquad \text{(flow conservation)}\]</span></p>
+<p><span class="math display">\[\sum_{i \in V&#39;} d_i \left( \sum_{\substack{j \in V \\ j \neq i}} x_{ijk} \right) \leq Q \quad \forall \, k \qquad \text{(capacity)}\]</span></p>
+<p><span class="math display">\[x_{ijk} \in \{0, 1\} \quad \forall \, i, j, k\]</span></p>
+<p>Plus subtour elimination constraints (MTZ-style with position variables per vehicle, or DFJ-style subset constraints).</p>
+<p><strong>Note on symmetry</strong>: If vehicles are identical, the formulation has symmetry — swapping the routes assigned to vehicles <span class="math inline">\(k_1\)</span> and <span class="math inline">\(k_2\)</span> gives an equivalent solution. This symmetry can slow down branch-and-bound. A common fix is to add symmetry-breaking constraints, such as requiring that vehicle 1 serves the lowest-indexed customer among all vehicles.</p>
+<h3 id="relationship-between-tsp-and-vrp">3.3 Relationship Between TSP and VRP</h3>
+<table>
+<colgroup>
+<col style="width: 47%" />
+<col style="width: 26%" />
+<col style="width: 26%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>TSP</th>
+<th>VRP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Number of vehicles</td>
+<td>1</td>
+<td><span class="math inline">\(K \geq 1\)</span></td>
+</tr>
+<tr>
+<td>Depot</td>
+<td>Optional (any start)</td>
+<td>Required (node 0)</td>
+</tr>
+<tr>
+<td>Capacity</td>
+<td>None</td>
+<td><span class="math inline">\(Q\)</span> per vehicle</td>
+</tr>
+<tr>
+<td>Core structure</td>
+<td>Single Hamiltonian cycle</td>
+<td><span class="math inline">\(K\)</span> depot-rooted cycles covering all customers</td>
+</tr>
+<tr>
+<td>Special case</td>
+<td>VRP with <span class="math inline">\(K=1\)</span>, <span class="math inline">\(Q = \infty\)</span></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The TSP is a special case of VRP. Conversely, VRP can be decomposed into a partitioning phase (assign customers to vehicles) and a routing phase (solve a TSP per vehicle), though this decomposition is suboptimal in general.</p>
+<hr />
+<h2 id="vrp-variants">4. VRP Variants</h2>
+<p>Real logistics problems rarely match the basic CVRP exactly. Several practically important variants extend the base model.</p>
+<h3 id="vrp-with-time-windows-vrptw">4.1 VRP with Time Windows (VRPTW)</h3>
+<p>Each customer <span class="math inline">\(i\)</span> has a time window <span class="math inline">\([a_i, b_i]\)</span> during which service must begin. A vehicle arriving before <span class="math inline">\(a_i\)</span> must wait; arriving after <span class="math inline">\(b_i\)</span> is infeasible.</p>
+<p><strong>Additional variables</strong>: <span class="math inline">\(t_{ik}\)</span> = time at which vehicle <span class="math inline">\(k\)</span> begins service at customer <span class="math inline">\(i\)</span>.</p>
+<p><strong>Additional constraints</strong>:</p>
+<p><span class="math display">\[a_i \leq t_{ik} \leq b_i \quad \forall \, i \in V&#39;, \; \forall \, k\]</span></p>
+<p><span class="math display">\[t_{ik} + s_i + \tau_{ij} - M(1 - x_{ijk}) \leq t_{jk} \quad \forall \, i, j \in V, \; \forall \, k\]</span></p>
+<p>where <span class="math inline">\(s_i\)</span> is the service time at customer <span class="math inline">\(i\)</span>, <span class="math inline">\(\tau_{ij}\)</span> is the travel time from <span class="math inline">\(i\)</span> to <span class="math inline">\(j\)</span>, and <span class="math inline">\(M\)</span> is a sufficiently large constant. The second constraint links arrival times: if vehicle <span class="math inline">\(k\)</span> goes from <span class="math inline">\(i\)</span> to <span class="math inline">\(j\)</span>, it cannot arrive at <span class="math inline">\(j\)</span> before finishing service at <span class="math inline">\(i\)</span> plus travel time.</p>
+<p><strong>Application</strong>: Home healthcare scheduling — nurses must visit patients within preferred time slots while minimizing total driving.</p>
+<h3 id="pickup-and-delivery-problem-pdp">4.2 Pickup and Delivery Problem (PDP)</h3>
+<p>Each request <span class="math inline">\(r\)</span> has an origin (pickup node <span class="math inline">\(p_r\)</span>) and a destination (delivery node <span class="math inline">\(d_r\)</span>). A vehicle must pick up the load at <span class="math inline">\(p_r\)</span> before delivering it to <span class="math inline">\(d_r\)</span>, and both nodes must be served by the same vehicle.</p>
+<p><strong>Additional constraints</strong> (precedence and pairing):</p>
+<p><span class="math display">\[\sum_{\substack{j \in V \\ j \neq p_r}} x_{p_r, j, k} = \sum_{\substack{j \in V \\ j \neq d_r}} x_{d_r, j, k} \quad \forall \, r, \; \forall \, k \qquad \text{(same vehicle)}\]</span></p>
+<p><span class="math display">\[u_{p_r} &lt; u_{d_r} \quad \forall \, r \qquad \text{(pickup before delivery)}\]</span></p>
+<p><strong>Application</strong>: Ride-sharing and on-demand transit systems — passengers must be picked up before being dropped off, using shared vehicles.</p>
+<h3 id="split-delivery-vrp">4.3 Split Delivery VRP</h3>
+<p>In the standard VRP, each customer is served by exactly one vehicle. The <strong>split delivery</strong> variant allows a customer’s demand to be split across multiple vehicles. This can reduce total cost when some customers have demands close to vehicle capacity.</p>
+<p>The formulation replaces the binary assignment constraint with:</p>
+<p><span class="math display">\[\sum_{k=1}^{K} y_{ik} = d_i \quad \forall \, i \in V&#39;\]</span></p>
+<p>where <span class="math inline">\(y_{ik} \geq 0\)</span> is the quantity delivered to customer <span class="math inline">\(i\)</span> by vehicle <span class="math inline">\(k\)</span>, and the linking constraints ensure that a vehicle visits customer <span class="math inline">\(i\)</span> only if <span class="math inline">\(y_{ik} &gt; 0\)</span>.</p>
+<hr />
+<h2 id="modeling-considerations-and-practical-tips">5. Modeling Considerations and Practical Tips</h2>
+<h3 id="model-size-and-tractability">5.1 Model Size and Tractability</h3>
+<table>
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 19%" />
+<col style="width: 25%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Binary Variables</th>
+<th>Constraints (approx.)</th>
+<th>Typical solvable size (Gurobi, minutes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TSP (MTZ)</td>
+<td><span class="math inline">\(n^2\)</span></td>
+<td><span class="math inline">\(O(n^2)\)</span></td>
+<td><span class="math inline">\(n \leq 30\text{–}50\)</span></td>
+</tr>
+<tr>
+<td>CVRP</td>
+<td><span class="math inline">\(n^2 K\)</span></td>
+<td><span class="math inline">\(O(n^2 K)\)</span></td>
+<td><span class="math inline">\(n \leq 20\text{–}30\)</span> with <span class="math inline">\(K \leq 5\)</span></td>
+</tr>
+<tr>
+<td>VRPTW</td>
+<td><span class="math inline">\(n^2 K + nK\)</span></td>
+<td><span class="math inline">\(O(n^2 K)\)</span></td>
+<td><span class="math inline">\(n \leq 15\text{–}25\)</span> with <span class="math inline">\(K \leq 5\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>For larger instances, heuristics (nearest-neighbor, savings algorithm) and metaheuristics (genetic algorithms, simulated annealing, tabu search) are used in practice. Commercial solvers like Gurobi increasingly support these through built-in heuristic callbacks.</p>
+<h3 id="strengthening-formulations">5.2 Strengthening Formulations</h3>
+<p>Several techniques tighten the LP relaxation and speed up branch-and-bound:</p>
+<ul>
+<li><strong>Tighter MTZ bounds</strong>: Replace <span class="math inline">\(u_i - u_j + n \cdot x_{ij} \leq n-1\)</span> with <span class="math inline">\(u_i - u_j + (n-1) x_{ij} + (n-3) x_{ji} \leq n - 2\)</span> (the <em>lifted MTZ</em> inequality).</li>
+<li><strong>Capacity cuts</strong>: For CVRP, require that the number of vehicles entering any subset <span class="math inline">\(S\)</span> is at least <span class="math inline">\(\lceil \sum_{i \in S} d_i / Q \rceil\)</span>.</li>
+<li><strong>Symmetry breaking</strong>: Order vehicles by their first customer index.</li>
+</ul>
+<h3 id="connecting-to-earlier-material">5.3 Connecting to Earlier Material</h3>
+<p>The routing formulations in this lecture draw on concepts from earlier weeks:</p>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 38%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Earlier Lecture</th>
+<th>Role in Routing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Assignment problem</td>
+<td>Network flows</td>
+<td>TSP without subtour elimination is an assignment</td>
+</tr>
+<tr>
+<td>Big-M constraints</td>
+<td>IP modeling</td>
+<td>MTZ subtour elimination, time window linking</td>
+</tr>
+<tr>
+<td>Binary variables for selection</td>
+<td>IP modeling (set covering, facility location)</td>
+<td>Arc selection, vehicle-customer assignment</td>
+</tr>
+<tr>
+<td>Network flow conservation</td>
+<td>MCNF</td>
+<td>Flow balance at each node in VRP</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="exercises">6. Exercises</h2>
+<p><strong>Exercise 1 (TSP Formulation)</strong>. A courier must visit 8 offices in the Chicago suburbs. Write the complete MTZ formulation. How many binary variables and constraints does the model have? <em>(Do not solve; just formulate.)</em></p>
+<p><strong>Exercise 2 (TSP Implementation)</strong>. Using the Illinois service tour data from Section 2.5, implement and solve the TSP in AMPL with Gurobi. Report the optimal tour and its total distance. Verify that no subtours exist in your solution.</p>
+<p><strong>Exercise 3 (VRP Modeling)</strong>. The food bank from Section 3.1 has 12 pantries with the following demands (in lbs): 450, 300, 550, 200, 400, 350, 600, 250, 500, 300, 400, 350. Each truck has capacity 2,000 lbs. Formulate the CVRP. What is the minimum number of trucks needed?</p>
+<p><strong>Exercise 4 (Time Windows)</strong>. Extend your VRP formulation from Exercise 3 by adding the constraint that pantries 1–4 must be served between 8:00 AM and 11:00 AM, pantries 5–8 between 10:00 AM and 1:00 PM, and pantries 9–12 between 12:00 PM and 3:00 PM. Write the additional constraints. Discuss: do overlapping windows make the problem easier or harder? Why?</p>
+<p><strong>Exercise 5 (Modeling Judgment)</strong>. A hospital system wants to route visiting nurses to patients’ homes. Each nurse has a maximum shift of 8 hours, can carry limited medical supplies, and some patients require specific nurse certifications. Which VRP variant is most appropriate? Describe the sets, parameters, and constraints you would add to the base CVRP formulation. <em>(Formulate; do not solve.)</em></p>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Rardin, R.L. <em>Optimization in Operations Research</em>, 2nd edition. Chapter 11 (integer programming models), Chapter 10 (network models).</li>
+<li>Toth, P. and Vigo, D. <em>The Vehicle Routing Problem</em>. SIAM, 2002.</li>
+<li>Miller, C.E., Tucker, A.W., and Zemlin, R.A. “Integer programming formulation of traveling salesman problems.” <em>Journal of the ACM</em>, 7(4):326–329, 1960.</li>
+<li>Dantzig, G.B., Fulkerson, D.R., and Johnson, S.M. “Solution of a large-scale traveling-salesman problem.” <em>Operations Research</em>, 2(4):393–410, 1954.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

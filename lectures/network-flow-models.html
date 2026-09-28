@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Network Flow Models · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="network-flow-models.md" download>.md</a> <a class="chip" href="network-flow-models.pdf" download>PDF</a></span></div>
+<article class="prose">
+<h1 id="isye-671-network-flow-models">ISYE 671: Network Flow Models</h1>
+<h2 id="lecture-notes-week-x">Lecture Notes — Week [X]</h2>
+<p><strong>Instructor:</strong> Dr. Ziteng Wang | <strong>Course:</strong> ISYE 671 — Linear Optimization and Network Flows<br />
+<strong>Duration:</strong> 2 hours | <strong>Prerequisites:</strong> Linear Programming, Integer Programming</p>
+<hr />
+<h2 id="learning-objectives">Learning Objectives</h2>
+<p>By the end of this session, students will be able to:</p>
+<ol type="1">
+<li>Define and use graph notation: nodes, arcs, directed/undirected graphs, paths, chains, and cycles</li>
+<li>Formulate the <strong>minimum cost network flow</strong> (MCNF) problem and recognize its LP structure</li>
+<li>Identify source, sink, and transshipment nodes, and understand flow conservation constraints</li>
+<li>Formulate <strong>maximum flow</strong> and <strong>shortest path</strong> problems as special cases of MCNF</li>
+<li>Formulate <strong>assignment</strong> and <strong>matching</strong> problems and recognize their network structure</li>
+</ol>
+<hr />
+<h2 id="graph-fundamentals-and-notation">1. Graph Fundamentals and Notation</h2>
+<h3 id="directed-graphs-digraphs">1.1 Directed Graphs (Digraphs)</h3>
+<p>A <strong>directed graph</strong> (digraph) <span class="math inline">\(G = (V, A)\)</span> consists of:</p>
+<ul>
+<li><span class="math inline">\(V = \{1, 2, \ldots, n\}\)</span>: a finite set of <strong>nodes</strong> (or vertices)</li>
+<li><span class="math inline">\(A \subseteq V \times V\)</span>: a set of <strong>arcs</strong> (directed edges), where each arc <span class="math inline">\((i, j) \in A\)</span> points from node <span class="math inline">\(i\)</span> to node <span class="math inline">\(j\)</span></li>
+</ul>
+<p>We call <span class="math inline">\(i\)</span> the <strong>tail</strong> and <span class="math inline">\(j\)</span> the <strong>head</strong> of arc <span class="math inline">\((i, j)\)</span>.</p>
+<h3 id="undirected-graphs">1.2 Undirected Graphs</h3>
+<p>An <strong>undirected graph</strong> <span class="math inline">\(G = (V, E)\)</span> has <strong>edges</strong> instead of arcs. An edge <span class="math inline">\(\{i, j\} \in E\)</span> connects nodes <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> with no implied direction. Undirected graphs can always be represented as digraphs by replacing each edge <span class="math inline">\(\{i, j\}\)</span> with two opposing arcs <span class="math inline">\((i, j)\)</span> and <span class="math inline">\((j, i)\)</span>.</p>
+<h3 id="key-graph-concepts">1.3 Key Graph Concepts</h3>
+<table>
+<colgroup>
+<col style="width: 35%" />
+<col style="width: 64%" />
+</colgroup>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Path</strong></td>
+<td>A sequence of arcs connecting two nodes, all traversed in the forward direction. No node is visited more than once.</td>
+</tr>
+<tr>
+<td><strong>Chain</strong></td>
+<td>Like a path, but arcs may be traversed against their direction.</td>
+</tr>
+<tr>
+<td><strong>Cycle</strong></td>
+<td>A chain that starts and ends at the same node.</td>
+</tr>
+<tr>
+<td><strong>Dicycle</strong></td>
+<td>A cycle in which all arcs are traversed in the forward direction.</td>
+</tr>
+<tr>
+<td><strong>Bipartite graph</strong></td>
+<td>A graph whose nodes can be partitioned into two disjoint sets <span class="math inline">\(S\)</span> and <span class="math inline">\(T\)</span>, with every arc/edge having one endpoint in each set.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nodearc-incidence-matrix">1.4 Node–Arc Incidence Matrix</h3>
+<p>The structure of a digraph can be captured algebraically by its <strong>node–arc incidence matrix</strong> <span class="math inline">\(A\)</span>, which has one row for every node and one column for every arc. For arc <span class="math inline">\((i, j)\)</span>:</p>
+<ul>
+<li>Entry in row <span class="math inline">\(i\)</span> (tail): <span class="math inline">\(-1\)</span></li>
+<li>Entry in row <span class="math inline">\(j\)</span> (head): <span class="math inline">\(+1\)</span></li>
+<li>All other entries: <span class="math inline">\(0\)</span></li>
+</ul>
+<p><strong>Example (Rardin Example 10.5).</strong> Consider a 4-node digraph with arcs <span class="math inline">\((1,2)\)</span>, <span class="math inline">\((1,4)\)</span>, <span class="math inline">\((2,4)\)</span>, <span class="math inline">\((3,1)\)</span>, <span class="math inline">\((4,3)\)</span>. The node–arc incidence matrix is:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th style="text-align: center;"><span class="math inline">\((1,2)\)</span></th>
+<th style="text-align: center;"><span class="math inline">\((1,4)\)</span></th>
+<th style="text-align: center;"><span class="math inline">\((2,4)\)</span></th>
+<th style="text-align: center;"><span class="math inline">\((3,1)\)</span></th>
+<th style="text-align: center;"><span class="math inline">\((4,3)\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>1</strong></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>2</strong></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>3</strong></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>4</strong></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key property:</strong> Every column has exactly one <span class="math inline">\(+1\)</span> and one <span class="math inline">\(-1\)</span>. This special structure gives network flow problems their remarkable computational properties, including <strong>total unimodularity</strong> (Section 6 below).</p>
+<blockquote>
+<p><strong>Exercise 1.</strong> Given the following node–arc incidence matrix, draw the corresponding digraph.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: center;">Col 1</th>
+<th style="text-align: center;">Col 2</th>
+<th style="text-align: center;">Col 3</th>
+<th style="text-align: center;">Col 4</th>
+<th style="text-align: center;">Col 5</th>
+<th style="text-align: center;">Col 6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(+1\)</span></td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<hr />
+<h2 id="the-minimum-cost-network-flow-problem">2. The Minimum Cost Network Flow Problem</h2>
+<h3 id="problem-statement">2.1 Problem Statement</h3>
+<p>The <strong>minimum cost network flow (MCNF)</strong> problem is the foundational model for all network flow optimization. Given a digraph <span class="math inline">\(G = (V, A)\)</span> with:</p>
+<ul>
+<li><strong>Decision variables:</strong> <span class="math inline">\(x_{ij}\)</span> = amount of flow on arc <span class="math inline">\((i, j)\)</span></li>
+<li><strong>Parameters for each arc <span class="math inline">\((i,j) \in A\)</span>:</strong>
+<ul>
+<li><span class="math inline">\(c_{ij}\)</span> = unit cost of flow</li>
+<li><span class="math inline">\(u_{ij}\)</span> = capacity (upper bound on flow)</li>
+</ul></li>
+<li><strong>Parameters for each node <span class="math inline">\(k \in V\)</span>:</strong>
+<ul>
+<li><span class="math inline">\(b_k\)</span> = <strong>net demand</strong> at node <span class="math inline">\(k\)</span></li>
+</ul></li>
+</ul>
+<p>The MCNF formulation is:</p>
+<p><span class="math display">\[
+\min \sum_{(i,j) \in A} c_{ij} \, x_{ij}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_{(i,k) \in A} x_{ik} - \sum_{(k,j) \in A} x_{kj} = b_k \qquad \forall \, k \in V
+\]</span></p>
+<p><span class="math display">\[
+0 \le x_{ij} \le u_{ij} \qquad \forall \, (i,j) \in A
+\]</span></p>
+<h3 id="flow-conservation-balance-constraints">2.2 Flow Conservation (Balance) Constraints</h3>
+<p>The main constraints enforce <strong>conservation of flow</strong> at every node:</p>
+<p><span class="math display">\[
+\text{(total flow in)} - \text{(total flow out)} = \text{net demand } b_k
+\]</span></p>
+<h3 id="node-types">2.3 Node Types</h3>
+<table>
+<thead>
+<tr>
+<th>Node Type</th>
+<th style="text-align: center;">Net Demand <span class="math inline">\(b_k\)</span></th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Source</strong> (supply)</td>
+<td style="text-align: center;"><span class="math inline">\(b_k &lt; 0\)</span></td>
+<td>Creates/generates flow</td>
+</tr>
+<tr>
+<td><strong>Sink</strong> (demand)</td>
+<td style="text-align: center;"><span class="math inline">\(b_k &gt; 0\)</span></td>
+<td>Consumes flow</td>
+</tr>
+<tr>
+<td><strong>Transshipment</strong></td>
+<td style="text-align: center;"><span class="math inline">\(b_k = 0\)</span></td>
+<td>Passes flow through</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Important:</strong> For the problem to be feasible, we require <span class="math inline">\(\sum_{k \in V} b_k = 0\)</span>, i.e., total supply must equal total demand. If total supply exceeds total demand, a dummy sink node is added with zero-cost arcs from all sources to absorb the excess.</p>
+</blockquote>
+<h3 id="matrix-form">2.4 Matrix Form</h3>
+<p>In matrix notation, the MCNF becomes a standard LP:</p>
+<p><span class="math display">\[
+\min \; \mathbf{c}^\top \mathbf{x} \quad \text{s.t.} \quad A\mathbf{x} = \mathbf{b}, \quad \mathbf{0} \le \mathbf{x} \le \mathbf{u}
+\]</span></p>
+<p>where <span class="math inline">\(A\)</span> is the node–arc incidence matrix.</p>
+<hr />
+<h3 id="application-optimal-ovens-inc.-ooi-rardin-application-10.1">2.5 Application: Optimal Ovens Inc. (OOI) — Rardin Application 10.1</h3>
+<p><strong>Setting:</strong> Optimal Ovens Inc. (OOI) manufactures ovens at 2 plants (Wisconsin and Alabama, each producing 1000 units) and ships through 2 warehouses (Fresno and Pittsburgh) to 3 customers (Memphis: 450, Peoria: 500, Newark: 610). The warehouses can transfer at most 25 ovens between themselves in either direction.</p>
+<p><strong>Network structure:</strong></p>
+<ul>
+<li>Nodes: 1 (Wisconsin), 2 (Alabama), 3 (Fresno), 4 (Pittsburgh), 5 (Memphis), 6 (Peoria), 7 (Newark), 8 (Dummy sink for excess supply: 440)</li>
+<li>Sources: nodes 1 and 2 with <span class="math inline">\(b_1 = b_2 = -1000\)</span></li>
+<li>Transshipment: nodes 3, 4 with <span class="math inline">\(b_3 = b_4 = 0\)</span></li>
+<li>Sinks: node 5 (<span class="math inline">\(b_5 = 450\)</span>), node 6 (<span class="math inline">\(b_6 = 500\)</span>), node 7 (<span class="math inline">\(b_7 = 610\)</span>), node 8 (<span class="math inline">\(b_8 = 440\)</span>)</li>
+<li>Arcs carry unit shipping costs and capacities</li>
+</ul>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[
+\min \; 7x_{1,3} + 8x_{1,4} + 4x_{2,3} + 7x_{2,4} + 25x_{3,5} + 5x_{3,6} + 17x_{3,7} + 29x_{4,5} + 8x_{4,6} + 5x_{4,7}
+\]</span></p>
+<p>subject to:</p>
+<table>
+<colgroup>
+<col style="width: 42%" />
+<col style="width: 35%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Constraint</th>
+<th style="text-align: center;">Equation</th>
+<th style="text-align: center;">Node</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">Supply</td>
+<td style="text-align: center;"><span class="math inline">\(-x_{1,3} - x_{1,4} - x_{1,8} = -1000\)</span></td>
+<td style="text-align: center;">Node 1 (Wisconsin)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Supply</td>
+<td style="text-align: center;"><span class="math inline">\(-x_{2,3} - x_{2,4} - x_{2,8} = -1000\)</span></td>
+<td style="text-align: center;">Node 2 (Alabama)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Transship</td>
+<td style="text-align: center;"><span class="math inline">\(x_{1,3} + x_{2,3} + x_{4,3} - x_{3,4} - x_{3,5} - x_{3,6} - x_{3,7} = 0\)</span></td>
+<td style="text-align: center;">Node 3 (Fresno)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Transship</td>
+<td style="text-align: center;"><span class="math inline">\(x_{1,4} + x_{2,4} + x_{3,4} - x_{4,3} - x_{4,5} - x_{4,6} - x_{4,7} = 0\)</span></td>
+<td style="text-align: center;">Node 4 (Pittsburgh)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Demand</td>
+<td style="text-align: center;"><span class="math inline">\(x_{3,5} + x_{4,5} = 450\)</span></td>
+<td style="text-align: center;">Node 5 (Memphis)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Demand</td>
+<td style="text-align: center;"><span class="math inline">\(x_{3,6} + x_{4,6} = 500\)</span></td>
+<td style="text-align: center;">Node 6 (Peoria)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Demand</td>
+<td style="text-align: center;"><span class="math inline">\(x_{3,7} + x_{4,7} = 610\)</span></td>
+<td style="text-align: center;">Node 7 (Newark)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Dummy</td>
+<td style="text-align: center;"><span class="math inline">\(x_{1,8} + x_{2,8} = 440\)</span></td>
+<td style="text-align: center;">Node 8 (Dummy)</td>
+</tr>
+<tr>
+<td style="text-align: center;">Capacity</td>
+<td style="text-align: center;"><span class="math inline">\(x_{3,4} \le 25, \; x_{4,3} \le 25\)</span></td>
+<td style="text-align: center;">Warehouse transfers</td>
+</tr>
+<tr>
+<td style="text-align: center;">Bounds</td>
+<td style="text-align: center;"><span class="math inline">\(x_{ij} \ge 0\)</span> for all <span class="math inline">\((i,j) \in A\)</span></td>
+<td style="text-align: center;"></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Discussion points:</strong></p>
+<ul>
+<li>Why was node 8 added? Total supply (<span class="math inline">\(2000\)</span>) <span class="math inline">\(&gt;\)</span> total demand (<span class="math inline">\(1560\)</span>), so excess = <span class="math inline">\(440\)</span></li>
+<li>The zero-cost arcs <span class="math inline">\((1,8)\)</span> and <span class="math inline">\((2,8)\)</span> let excess supply “disappear” without affecting costs</li>
+<li>Node–arc incidence matrix has 8 rows (nodes) and 14 columns (arcs)</li>
+</ul>
+<h3 id="smaller-worked-example-rardin-example-10.1">2.6 Smaller Worked Example — Rardin Example 10.1</h3>
+<p>Consider a 4-node network with <span class="math inline">\(b_1 = -100\)</span>, <span class="math inline">\(b_2 = 0\)</span> (transshipment), <span class="math inline">\(b_3 = 60\)</span>, <span class="math inline">\(b_4 = 40\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Arc</th>
+<th style="text-align: center;">Cost <span class="math inline">\(c_{ij}\)</span></th>
+<th style="text-align: center;">Capacity <span class="math inline">\(u_{ij}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((1,2)\)</span></td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">90</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((1,4)\)</span></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">75</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((2,3)\)</span></td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">50</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((2,4)\)</span></td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;"><span class="math inline">\(\infty\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((4,2)\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(-1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(\infty\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((4,3)\)</span></td>
+<td style="text-align: center;">11</td>
+<td style="text-align: center;"><span class="math inline">\(\infty\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[
+\min \; 2x_{1,2} + 3x_{1,4} + 5x_{2,3} - x_{4,2} + 11x_{4,3}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad -x_{1,2} - x_{1,4} = -100
+\]</span> <span class="math display">\[
+x_{1,2} + x_{4,2} - x_{2,3} - x_{2,4} = 0
+\]</span> <span class="math display">\[
+x_{2,3} + x_{4,3} = 60
+\]</span> <span class="math display">\[
+x_{1,4} + x_{2,4} - x_{4,2} - x_{4,3} = 40
+\]</span> <span class="math display">\[
+x_{1,2} \le 90, \; x_{1,4} \le 75, \; x_{2,3} \le 50; \quad x_{ij} \ge 0 \;\; \forall (i,j) \in A
+\]</span></p>
+<blockquote>
+<p><strong>Exercise 2.</strong> A company has 3 factories (<span class="math inline">\(F_1\)</span>, <span class="math inline">\(F_2\)</span>, <span class="math inline">\(F_3\)</span>) with supplies of 200, 150, and 100 units respectively, and 2 distribution centers (<span class="math inline">\(D_1\)</span>, <span class="math inline">\(D_2\)</span>) serving 2 retail stores (<span class="math inline">\(R_1\)</span>: 180 demand, <span class="math inline">\(R_2\)</span>: 250 demand). Shipping costs per unit are: <span class="math inline">\(F_1 \to D_1\)</span>: $3, <span class="math inline">\(F_1 \to D_2\)</span>: $5, <span class="math inline">\(F_2 \to D_1\)</span>: $4, <span class="math inline">\(F_2 \to D_2\)</span>: $2, <span class="math inline">\(F_3 \to D_2\)</span>: $6, <span class="math inline">\(D_1 \to R_1\)</span>: $2, <span class="math inline">\(D_1 \to R_2\)</span>: $4, <span class="math inline">\(D_2 \to R_1\)</span>: $3, <span class="math inline">\(D_2 \to R_2\)</span>: $1. Draw the network, identify node types, add a dummy sink if needed, and write the full MCNF formulation.</p>
+</blockquote>
+<hr />
+<h2 id="maximum-flow-problem-as-a-special-case-of-mcnf">3. Maximum Flow Problem as a Special Case of MCNF</h2>
+<h3 id="problem-definition">3.1 Problem Definition</h3>
+<p>Given a digraph <span class="math inline">\(G = (V, A)\)</span> with a designated <strong>source</strong> <span class="math inline">\(s\)</span>, <strong>sink</strong> <span class="math inline">\(t\)</span>, and arc capacities <span class="math inline">\(u_{ij}\)</span>, the <strong>maximum flow problem</strong> seeks the largest total flow from <span class="math inline">\(s\)</span> to <span class="math inline">\(t\)</span> subject to flow conservation and capacity constraints.</p>
+<h3 id="conversion-to-mcnf">3.2 Conversion to MCNF</h3>
+<p>The max flow problem is a special case of MCNF. The conversion works by:</p>
+<ol type="1">
+<li>Set all arc costs <span class="math inline">\(c_{ij} = 0\)</span> on the original arcs</li>
+<li>Set all node demands <span class="math inline">\(b_k = 0\)</span> for all <span class="math inline">\(k \in V\)</span></li>
+<li>Add a <strong>return arc</strong> <span class="math inline">\((t, s)\)</span> from sink to source with cost <span class="math inline">\(c_{t,s} = -1\)</span> and unlimited capacity</li>
+</ol>
+<p>Minimizing the MCNF objective (which is <span class="math inline">\(-1 \times x_{t,s}\)</span>) is equivalent to maximizing <span class="math inline">\(x_{t,s}\)</span>, the total flow from <span class="math inline">\(s\)</span> to <span class="math inline">\(t\)</span>.</p>
+<p><strong>MCNF formulation for max flow:</strong></p>
+<p><span class="math display">\[
+\min \; -x_{t,s}
+\]</span> <span class="math display">\[
+\text{s.t.} \quad \sum_{(i,k) \in A&#39;} x_{ik} - \sum_{(k,j) \in A&#39;} x_{kj} = 0 \quad \forall \, k \in V
+\]</span> <span class="math display">\[
+0 \le x_{ij} \le u_{ij} \quad \forall \, (i,j) \in A, \qquad x_{t,s} \ge 0
+\]</span></p>
+<p>where <span class="math inline">\(A&#39; = A \cup \{(t, s)\}\)</span>.</p>
+<h3 id="max-flow-min-cut-duality-optional">3.3 Max Flow – Min Cut Duality <em>(Optional)</em></h3>
+<p>One of the most celebrated results in combinatorial optimization:</p>
+<blockquote>
+<p><strong>Max Flow – Min Cut Theorem (Ford &amp; Fulkerson, 1956):</strong> The maximum total feasible flow from <span class="math inline">\(s\)</span> to <span class="math inline">\(t\)</span> equals the minimum total forward capacity of any cut separating <span class="math inline">\(s\)</span> and <span class="math inline">\(t\)</span>.</p>
+</blockquote>
+<p>An <strong><span class="math inline">\(s\)</span>-<span class="math inline">\(t\)</span> cut</strong> <span class="math inline">\((S, T)\)</span> partitions <span class="math inline">\(V\)</span> into <span class="math inline">\(S\)</span> (containing <span class="math inline">\(s\)</span>) and <span class="math inline">\(T = V \setminus S\)</span> (containing <span class="math inline">\(t\)</span>). Its <strong>capacity</strong> is <span class="math inline">\(\sum_{i \in S, j \in T, (i,j) \in A} u_{ij}\)</span>.</p>
+<h3 id="application-building-evacuation-rardin-application-10.5">3.4 Application: Building Evacuation — Rardin Application 10.5</h3>
+<p><strong>Setting:</strong> A proposed sports arena must be evaluated for emergency evacuation capacity. Patrons exit through 4 doors (capacity 600/min each) into an outer hallway (350/min in each direction), then through 4 firestairs (400/min each) and a parking tunnel (800/min) to safety.</p>
+<p>The network has source <span class="math inline">\(s = 1\)</span> (arena), sink <span class="math inline">\(t = 10\)</span> (outside), and intermediate nodes 2–9 representing hallway junctions, stairways, and the tunnel entrance.</p>
+<p><strong>Result:</strong> Maximum evacuation rate = <strong>2,100 persons per minute</strong>.</p>
+<p><strong>Minimum cut</strong> identifies the bottleneck: <span class="math inline">\(S = \{1, 4, 5, 6, 7, 8\}\)</span>, <span class="math inline">\(T = \{2, 3, 9, 10\}\)</span> with forward arcs across the cut having total capacity <span class="math inline">\(600 + 350 + 350 + 400 + 400 = 2{,}100\)</span>, matching the max flow.</p>
+<h3 id="worked-example-rardin-example-10.24">3.5 Worked Example — Rardin Example 10.24</h3>
+<p>Consider the following max flow instance with arc labels <span class="math inline">\((u_{ij}, x_{ij})\)</span> denoting capacity and current flow:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Arc</th>
+<th style="text-align: center;">Capacity <span class="math inline">\(u_{ij}\)</span></th>
+<th style="text-align: center;">Current Flow <span class="math inline">\(x_{ij}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((1,2)\)</span></td>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">15</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((1,3)\)</span></td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((2,3)\)</span></td>
+<td style="text-align: center;">13</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((2,4)\)</span></td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\((3,4)\)</span></td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">15</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Maximum flow</strong> = 30, achieved at <span class="math inline">\(x_{1,2} = 20\)</span>, <span class="math inline">\(x_{1,3} = 10\)</span>, <span class="math inline">\(x_{2,3} = 8\)</span>, <span class="math inline">\(x_{2,4} = 12\)</span>, <span class="math inline">\(x_{3,4} = 18\)</span>.</p>
+<p><strong>Minimum cut</strong> separates <span class="math inline">\(\{1, 2\}\)</span> from <span class="math inline">\(\{3, 4\}\)</span> with forward capacity <span class="math inline">\(10 + 8 + 12 = 30\)</span>.</p>
+<p><strong>Augmenting paths</strong> from the initial flow:</p>
+<ul>
+<li>Path <span class="math inline">\(1 \to 2 \to 4\)</span>: both arcs forward, <span class="math inline">\(\lambda = \min\{25, 2\} = 2\)</span></li>
+<li>Path <span class="math inline">\(1 \to 2 \to 3 \to 4\)</span>: arc <span class="math inline">\((1,2)\)</span> forward, arc <span class="math inline">\((3,2)\)</span> reverse, arc <span class="math inline">\((3,4)\)</span> forward; <span class="math inline">\(\lambda = \min\{25, 3, 7\} = 3\)</span></li>
+</ul>
+<blockquote>
+<p><strong>Exercise 3.</strong> A city water system has source <span class="math inline">\(s\)</span> and sink <span class="math inline">\(t\)</span> connected through 4 intermediate pumping stations. Arc capacities (in million gallons/day) are: <span class="math inline">\((s,1)\)</span>: 15, <span class="math inline">\((s,2)\)</span>: 12, <span class="math inline">\((1,3)\)</span>: 8, <span class="math inline">\((1,2)\)</span>: 5, <span class="math inline">\((2,4)\)</span>: 10, <span class="math inline">\((3,t)\)</span>: 12, <span class="math inline">\((3,4)\)</span>: 3, <span class="math inline">\((4,t)\)</span>: 14. Find the maximum flow and identify a minimum cut. Then: if you could increase the capacity of exactly one arc by 5 units, which would you choose and why?</p>
+</blockquote>
+<hr />
+<h2 id="shortest-path-problem-as-a-special-case-of-mcnf">4. Shortest Path Problem as a Special Case of MCNF</h2>
+<h3 id="problem-definition-1">4.1 Problem Definition</h3>
+<p>Given a digraph <span class="math inline">\(G = (V, A)\)</span> with arc costs <span class="math inline">\(c_{ij}\)</span> and a designated source node <span class="math inline">\(s\)</span> and destination node <span class="math inline">\(t\)</span>, the <strong>shortest path problem</strong> finds the minimum-cost path from <span class="math inline">\(s\)</span> to <span class="math inline">\(t\)</span>.</p>
+<h3 id="conversion-to-mcnf-1">4.2 Conversion to MCNF</h3>
+<p>The shortest path problem is a special case of MCNF with:</p>
+<ul>
+<li><strong>One unit of flow</strong> to send from <span class="math inline">\(s\)</span> to <span class="math inline">\(t\)</span></li>
+<li>Net demands: <span class="math inline">\(b_s = -1\)</span> (source), <span class="math inline">\(b_t = +1\)</span> (sink), <span class="math inline">\(b_k = 0\)</span> for all other nodes</li>
+<li>All capacities <span class="math inline">\(u_{ij} = \infty\)</span> (or 1 suffices for a single-path solution)</li>
+<li>Arc costs <span class="math inline">\(c_{ij}\)</span> represent distances, times, or other costs</li>
+</ul>
+<p><strong>MCNF formulation:</strong></p>
+<p><span class="math display">\[
+\min \sum_{(i,j) \in A} c_{ij} \, x_{ij}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_{(i,k) \in A} x_{ik} - \sum_{(k,j) \in A} x_{kj} = b_k \quad \forall \, k \in V
+\]</span></p>
+<p><span class="math display">\[
+x_{ij} \ge 0 \quad \forall \, (i,j) \in A
+\]</span></p>
+<p>where <span class="math inline">\(b_s = -1\)</span>, <span class="math inline">\(b_t = +1\)</span>, and <span class="math inline">\(b_k = 0\)</span> otherwise.</p>
+<p>At optimality, arcs with <span class="math inline">\(x_{ij} = 1\)</span> form the shortest path.</p>
+<blockquote>
+<p><strong>Exercise 4.</strong> Formulate the shortest path from node 1 to node 6 in the following network as an MCNF. Nodes: <span class="math inline">\(V = \{1, 2, 3, 4, 5, 6\}\)</span>. Arcs and costs: <span class="math inline">\((1,2)\)</span>: 4, <span class="math inline">\((1,3)\)</span>: 2, <span class="math inline">\((2,3)\)</span>: 1, <span class="math inline">\((2,4)\)</span>: 5, <span class="math inline">\((3,4)\)</span>: 8, <span class="math inline">\((3,5)\)</span>: 10, <span class="math inline">\((4,6)\)</span>: 2, <span class="math inline">\((5,4)\)</span>: 1, <span class="math inline">\((5,6)\)</span>: 6. Write the full LP and identify the net demands.</p>
+</blockquote>
+<hr />
+<h2 id="transportation-and-assignment-problems">5. Transportation and Assignment Problems</h2>
+<h3 id="transportation-problem">5.1 Transportation Problem</h3>
+<p>A <strong>transportation problem</strong> is a special MCNF where every node is either a pure source or a pure sink — there are no transshipment nodes. All flow goes directly from sources to sinks.</p>
+<p><strong>Standard form</strong> (Rardin Definition 10.39): Given supplies <span class="math inline">\(s_i\)</span>, demands <span class="math inline">\(d_j\)</span>, and unit costs <span class="math inline">\(c_{ij}\)</span>:</p>
+<p><span class="math display">\[
+\min \sum_i \sum_j c_{ij} \, x_{ij}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_j x_{ij} = s_i \quad \forall \, i \quad \text{(supply constraints)}
+\]</span></p>
+<p><span class="math display">\[
+\sum_i x_{ij} = d_j \quad \forall \, j \quad \text{(demand constraints)}
+\]</span></p>
+<p><span class="math display">\[
+x_{ij} \ge 0 \quad \forall \, i, j
+\]</span></p>
+<p><strong>Example (Rardin Example 10.22):</strong> Two sources (node 1: supply 50, node 3: supply 30) and two sinks (node 2: demand 45, node 4: demand 35) with costs <span class="math inline">\(c_{1,2} = 7\)</span>, <span class="math inline">\(c_{1,4} = 5\)</span>, <span class="math inline">\(c_{3,2} = 4\)</span>, <span class="math inline">\(c_{3,4} = 9\)</span>:</p>
+<p><span class="math display">\[
+\min \; 7x_{1,2} + 5x_{1,4} + 4x_{3,2} + 9x_{3,4}
+\]</span> <span class="math display">\[
+\text{s.t.} \quad x_{1,2} + x_{1,4} = 50, \quad x_{3,2} + x_{3,4} = 30
+\]</span> <span class="math display">\[
+x_{1,2} + x_{3,2} = 45, \quad x_{1,4} + x_{3,4} = 35; \quad x_{ij} \ge 0
+\]</span></p>
+<h3 id="assignment-problem">5.2 Assignment Problem</h3>
+<p><strong>Assignment problems</strong> are a further specialization where all supplies and demands equal 1, and decision variables are binary:</p>
+<p><span class="math display">\[
+x_{ij} = \begin{cases} 1 &amp; \text{if } i \text{ is assigned to } j \\ 0 &amp; \text{otherwise} \end{cases}
+\]</span></p>
+<p><strong>Linear assignment formulation</strong> (Rardin Definition 10.40):</p>
+<p><span class="math display">\[
+\min \text{ (or max)} \sum_{(i,j) \in A} c_{ij} \, x_{ij}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_{j:(i,j) \in A} x_{ij} = 1 \quad \forall \, i \quad \text{(every } i \text{ is assigned)}
+\]</span></p>
+<p><span class="math display">\[
+\sum_{i:(i,j) \in A} x_{ij} = 1 \quad \forall \, j \quad \text{(every } j \text{ is assigned)}
+\]</span></p>
+<p><span class="math display">\[
+x_{ij} \ge 0 \quad \forall \, (i,j) \in A
+\]</span></p>
+<p><strong>Key insight:</strong> Even though assignment is naturally an integer (0-1) problem, the integrality property of network flows means we can solve it as an LP and automatically get an integer optimal solution.</p>
+<p><strong>Unequal sets:</strong> If one set is larger, the smaller set is augmented with <strong>dummy</strong> members connected to all members of the other set at zero cost.</p>
+<h3 id="example-dating-service-assignment-rardin-example-10.23">5.3 Example: Dating Service Assignment (Rardin Example 10.23)</h3>
+<p>Three males and three females with compatibility ratings:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;"></th>
+<th style="text-align: center;"><span class="math inline">\(j = 1\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(j = 2\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(j = 3\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><span class="math inline">\(i = 1\)</span></td>
+<td style="text-align: center;">90</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">12</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\(i = 2\)</span></td>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">75</td>
+</tr>
+<tr>
+<td style="text-align: center;"><span class="math inline">\(i = 3\)</span></td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">80</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Formulation</strong> (maximizing total compatibility):</p>
+<p><span class="math display">\[
+\max \; 90x_{1,1} + 30x_{1,2} + 12x_{1,3} + 40x_{2,1} + 80x_{2,2} + 75x_{2,3} + 60x_{3,1} + 65x_{3,2} + 80x_{3,3}
+\]</span></p>
+<p>subject to assignment constraints (each person paired exactly once) and <span class="math inline">\(x_{ij} \ge 0\)</span>.</p>
+<h3 id="application-cam-workstation-assignment-rardin-application-10.4">5.4 Application: CAM Workstation Assignment (Rardin Application 10.4)</h3>
+<p><strong>Setting:</strong> A computer-aided manufacturing system routes 8 jobs to 10 workstations. Not every job can go to every station. Table entries show combined transportation + waiting + processing time for feasible job–station pairs (dashes indicate infeasible assignments).</p>
+<p>Since there are 10 stations but only 8 jobs, 2 <strong>dummy jobs</strong> (9 and 10) are added with zero cost to all stations, making it a balanced <span class="math inline">\(10 \times 10\)</span> assignment. The optimal solution assigns:</p>
+<p><span class="math display">\[
+x^*_{1,1} = x^*_{2,2} = x^*_{3,8} = x^*_{4,6} = x^*_{5,4} = x^*_{6,9} = x^*_{7,10} = x^*_{8,3} = 1
+\]</span></p>
+<blockquote>
+<p><strong>Exercise 5.</strong> A logistics company has 4 delivery trucks and 4 delivery zones. The cost (in $) of assigning each truck to each zone is:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;"></th>
+<th style="text-align: center;">Zone A</th>
+<th style="text-align: center;">Zone B</th>
+<th style="text-align: center;">Zone C</th>
+<th style="text-align: center;">Zone D</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">Truck 1</td>
+<td style="text-align: center;">90</td>
+<td style="text-align: center;">75</td>
+<td style="text-align: center;">110</td>
+<td style="text-align: center;">95</td>
+</tr>
+<tr>
+<td style="text-align: center;">Truck 2</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">85</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">65</td>
+</tr>
+<tr>
+<td style="text-align: center;">Truck 3</td>
+<td style="text-align: center;">125</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">105</td>
+</tr>
+<tr>
+<td style="text-align: center;">Truck 4</td>
+<td style="text-align: center;">50</td>
+<td style="text-align: center;">90</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">70</td>
+</tr>
+</tbody>
+</table>
+<ol type="a">
+<li>Formulate as a minimization assignment problem.<br />
+</li>
+<li>If Truck 2 cannot serve Zone A, how does the formulation change?<br />
+</li>
+<li>If a 5th zone is added with costs {80, 40, 95, 55}, what structural change is needed?</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="integrality-property-of-network-flows-optional">6. Integrality Property of Network Flows <em>(Optional)</em></h2>
+<h3 id="the-key-result">6.1 The Key Result</h3>
+<p>One of the most powerful properties of network flow models:</p>
+<blockquote>
+<p><strong>Principle (Rardin 10.35):</strong> If a minimum cost network flow model has <strong>integer constraint data</strong> (supplies, demands, and capacities) and has any optimal solution, then it has an <strong>integer optimal solution</strong>.</p>
+</blockquote>
+<p>This means:</p>
+<ul>
+<li>Transportation problems with integer data yield integer optimal flows</li>
+<li>Assignment problems (all supplies/demands = 1) yield 0/1 optimal solutions</li>
+<li>We can solve these as LPs and get integer solutions automatically — no branch-and-bound needed!</li>
+</ul>
+<h3 id="why-it-works">6.2 Why It Works</h3>
+<p>The property follows from two observations:</p>
+<ol type="1">
+<li><strong>Total unimodularity:</strong> Node–arc incidence matrices are <strong>totally unimodular</strong> — every square submatrix has determinant <span class="math inline">\(\in \{0, +1, -1\}\)</span></li>
+<li><strong>Basis computations:</strong> When solving the LP, extreme-point (basic) solutions involve inverting submatrices of <span class="math inline">\(A\)</span>. Under total unimodularity, if the right-hand side <span class="math inline">\(\mathbf{b}\)</span> and bounds <span class="math inline">\(\mathbf{u}\)</span> are integer, so is every basic feasible solution</li>
+</ol>
+<p>Note: <strong>Costs do not need to be integer.</strong> The integrality property depends only on constraint data.</p>
+<h3 id="what-this-does-not-cover">6.3 What This Does NOT Cover</h3>
+<p>Generalizations like <strong>multicommodity flows</strong> (multiple commodities sharing the same arcs) and <strong>gain/loss flows</strong> (where flow is multiplied along arcs) do <strong>not</strong> preserve total unimodularity. These problems may require integer programming techniques.</p>
+<hr />
+<h2 id="matching-problems">7. Matching Problems</h2>
+<h3 id="matching-vs.-assignment">7.1 Matching vs. Assignment</h3>
+<p>While assignment problems pair objects from two <strong>distinct</strong> sets, <strong>matching problems</strong> pair objects from a <strong>single</strong> set.</p>
+<p><strong>Decision variables:</strong></p>
+<p><span class="math display">\[
+x_{i,i&#39;} = \begin{cases} 1 &amp; \text{if } i \text{ is paired with } i&#39; \\ 0 &amp; \text{otherwise} \end{cases}
+\]</span></p>
+<p>where by convention <span class="math inline">\(i&#39; &gt; i\)</span> to avoid double counting.</p>
+<h3 id="matching-formulation-rardin-definition-11.18">7.2 Matching Formulation (Rardin Definition 11.18)</h3>
+<p><span class="math display">\[
+\min \text{ (or max)} \sum_i \sum_{i&#39; &gt; i} c_{i,i&#39;} \, x_{i,i&#39;}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_{i&#39; &lt; i} x_{i&#39;,i} + \sum_{i&#39; &gt; i} x_{i,i&#39;} = 1 \quad \forall \, i
+\]</span></p>
+<p><span class="math display">\[
+x_{i,i&#39;} \in \{0, 1\} \quad \forall \, i, i&#39; &gt; i
+\]</span></p>
+<p>The two sums in each constraint are needed because <span class="math inline">\(i\)</span> could be the smaller or larger index in any pair.</p>
+<h3 id="application-superfi-speaker-matching-rardin-application-11.7">7.3 Application: Superfi Speaker Matching (Rardin Application 11.7)</h3>
+<p><strong>Setting:</strong> High-fidelity speaker manufacturer Superfi sells speakers in pairs. Even with strict quality standards, any two speakers produce some distortion <span class="math inline">\(d_{i,i&#39;}\)</span> when paired. The goal is to pair all speakers in the current lot to minimize total distortion.</p>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[
+\min \sum_i \sum_{i&#39; &gt; i} d_{i,i&#39;} \, x_{i,i&#39;}
+\]</span></p>
+<p><span class="math display">\[
+\text{s.t.} \quad \sum_{i&#39; &lt; i} x_{i&#39;,i} + \sum_{i&#39; &gt; i} x_{i,i&#39;} = 1 \quad \forall \, i
+\]</span></p>
+<p><span class="math display">\[
+x_{i,i&#39;} \in \{0, 1\} \quad \forall \, i, i&#39;
+\]</span></p>
+<h3 id="example-team-formation-matching-rardin-example-11.13">7.4 Example: Team Formation Matching (Rardin Example 11.13)</h3>
+<p>An instructor assigns students to 2-person project teams. Each student <span class="math inline">\(s\)</span> has rated their preference <span class="math inline">\(p_{s,s&#39;}\)</span> for working with each other student. The model maximizes total two-way preference:</p>
+<p><span class="math display">\[
+\max \sum_i \sum_{i&#39; &gt; i} (p_{i,i&#39;} + p_{i&#39;,i}) \, x_{i,i&#39;}
+\]</span></p>
+<p>subject to matching constraints.</p>
+<h3 id="matching-variants">7.5 Matching Variants</h3>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 59%" />
+</colgroup>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Maximum weight matching</strong></td>
+<td>Find a set of disjoint edges of maximum total weight</td>
+</tr>
+<tr>
+<td><strong>Perfect matching</strong></td>
+<td>Every node must be matched (all constraints are <span class="math inline">\(= 1\)</span>)</td>
+</tr>
+<tr>
+<td><strong>Maximum cardinality matching</strong></td>
+<td>Match as many nodes as possible (relax <span class="math inline">\(= 1\)</span> to <span class="math inline">\(\le 1\)</span>, maximize count)</td>
+</tr>
+<tr>
+<td><strong>Bipartite matching</strong></td>
+<td>Matching on a bipartite graph (reduces to assignment)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tractability note:</strong> Matching on bipartite graphs is polynomial (it reduces to assignment/network flow). Matching on general graphs is also polynomial but requires more sophisticated algorithms (Edmonds’ blossom algorithm). However, unlike assignment, the matching polytope for general graphs is <strong>not</strong> described by the simple LP relaxation — additional constraints (e.g., odd-set constraints) are needed.</p>
+<blockquote>
+<p><strong>Exercise 6.</strong> Six tennis players need to be paired for 3 doubles practice matches. Their compatibility scores (combining skill balance + scheduling preference) are:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;"></th>
+<th style="text-align: center;">P2</th>
+<th style="text-align: center;">P3</th>
+<th style="text-align: center;">P4</th>
+<th style="text-align: center;">P5</th>
+<th style="text-align: center;">P6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">9</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">7</td>
+</tr>
+<tr>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">9</td>
+</tr>
+<tr>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">4</td>
+</tr>
+</tbody>
+</table>
+<ol type="a">
+<li>Formulate as a maximum weight perfect matching problem.<br />
+</li>
+<li>Write out all the constraints explicitly.<br />
+</li>
+<li>How does the formulation change if Player 1 and Player 4 refuse to be paired?</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="summary-the-network-flow-family">8. Summary: The Network Flow Family</h2>
+<h3 id="special-cases-of-mcnf">8.1 Special Cases of MCNF</h3>
+<p>The first five problems below form a hierarchy of progressively more specialized MCNF models. Each is obtained by restricting the parameters of the general MCNF formulation:</p>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 40%" />
+<col style="width: 43%" />
+</colgroup>
+<thead>
+<tr>
+<th>Problem</th>
+<th style="text-align: center;">Special Case of MCNF?</th>
+<th>How It Specializes MCNF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Min Cost Flow</strong></td>
+<td style="text-align: center;">— (this is the general model)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Max Flow</strong></td>
+<td style="text-align: center;">Yes</td>
+<td>All <span class="math inline">\(c_{ij} = 0\)</span>; all <span class="math inline">\(b_k = 0\)</span>; add return arc <span class="math inline">\((t,s)\)</span> with <span class="math inline">\(c_{t,s} = -1\)</span></td>
+</tr>
+<tr>
+<td><strong>Shortest Path</strong></td>
+<td style="text-align: center;">Yes</td>
+<td>Unit flow: <span class="math inline">\(b_s = -1\)</span>, <span class="math inline">\(b_t = +1\)</span>, all others <span class="math inline">\(= 0\)</span>; uncapacitated</td>
+</tr>
+<tr>
+<td><strong>Transportation</strong></td>
+<td style="text-align: center;">Yes</td>
+<td>Bipartite graph; no transshipment nodes; all arcs go source <span class="math inline">\(\to\)</span> sink</td>
+</tr>
+<tr>
+<td><strong>Assignment</strong></td>
+<td style="text-align: center;">Yes</td>
+<td>Transportation with all <span class="math inline">\(s_i = 1\)</span>, <span class="math inline">\(d_j = 1\)</span>; binary optimal by integrality</td>
+</tr>
+<tr>
+<td><strong>Bipartite Matching</strong></td>
+<td style="text-align: center;">Yes</td>
+<td>Equivalent to assignment on a bipartite graph</td>
+</tr>
+<tr>
+<td><strong>General Matching</strong></td>
+<td style="text-align: center;"><strong>No</strong></td>
+<td>Non-bipartite; constraint matrix is <strong>not</strong> a node–arc incidence matrix</td>
+</tr>
+</tbody>
+</table>
+<h3 id="why-general-matching-is-different">8.2 Why General Matching Is Different</h3>
+<p>General (non-bipartite) matching problems pair objects from a <strong>single</strong> set, so the constraint matrix does not have the <span class="math inline">\(\{+1, -1, 0\}\)</span> column structure of a node–arc incidence matrix. As a result:</p>
+<ul>
+<li>The constraint matrix is <strong>not</strong> totally unimodular</li>
+<li>The LP relaxation can produce fractional solutions (e.g., <span class="math inline">\(x = 1/2\)</span> on every edge of a triangle satisfies all relaxed constraints)</li>
+<li>Solving to integrality requires either ILP techniques or specialized algorithms (e.g., Edmonds’ blossom algorithm with odd-set inequalities)</li>
+</ul>
+<p>Bipartite matching, by contrast, maps directly to an assignment problem on a bipartite graph and inherits all the MCNF properties, including guaranteed integer LP solutions.</p>
+<h3 id="key-takeaways">8.3 Key Takeaways</h3>
+<ol type="1">
+<li>The MCNF is a <strong>linear program</strong> whose node–arc incidence matrix is <strong>totally unimodular</strong>, guaranteeing integer optimal solutions when constraint data is integer.</li>
+<li>Recognizing that a problem has MCNF structure can transform an apparently difficult ILP into a tractable LP — this applies to max flow, shortest path, transportation, assignment, and bipartite matching.</li>
+<li>General matching is a closely <strong>related</strong> but <strong>distinct</strong> class of combinatorial optimization problems that requires tools beyond network flow LP.</li>
+</ol>
+<hr />
+<h2 id="whats-next">9. What’s Next</h2>
+<ul>
+<li><strong>Computational lab:</strong> Solving network flow problems in Python using AMPL/Gurobi on Google Colab</li>
+<li><strong>Specialized algorithms:</strong> Network simplex, cycle cancelling, Dijkstra, Bellman–Ford</li>
+<li><strong>Advanced topics:</strong> Multicommodity flows, flows with gains/losses, minimum spanning trees</li>
+</ul>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Rardin, R. L. (2017). <em>Optimization in Operations Research</em>, 2nd ed. Pearson. Chapters 9–11.</li>
+<li>Ahuja, R. K., Magnanti, T. L., &amp; Orlin, J. B. (1993). <em>Network Flows: Theory, Algorithms, and Applications</em>. Prentice Hall.</li>
+<li>Ford, L. R. &amp; Fulkerson, D. R. (1956). Maximal flow through a network. <em>Canadian Journal of Mathematics</em>, 8, 399–404.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

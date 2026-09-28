@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 4: Routing Problem · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-4-routing-problem.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-4-routing-problem">Case Study 4: Routing Problem</h1>
+<h2 id="delivery-route-optimization-for-a-regional-grocery-e-commerce-service">Delivery Route Optimization for a Regional Grocery E-Commerce Service</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>FreshCart Midwest is a regional online grocery delivery service operating in the greater Champaign-Urbana metropolitan area. The company operates a single fulfillment center (depot) and delivers grocery orders to residential customers using a fleet of delivery vans. Business has grown rapidly, and the operations team needs a systematic approach to daily route planning.</p>
+<p>You have been brought in as an operations research consultant to develop and solve a vehicle routing model that minimizes total delivery cost while respecting vehicle capacity and customer time windows. The problem is a <strong>Capacitated Vehicle Routing Problem with Time Windows (CVRPTW)</strong>.</p>
+<hr />
+<h2 id="problem-data">Problem Data</h2>
+<h3 id="depot">Depot</h3>
+<p>The FreshCart fulfillment center (node 0) is located at coordinates (40.0, 40.0) on a grid representing the delivery area (each grid unit ≈ 0.5 miles). The depot opens at 6:00 AM and all vehicles must return by 4:00 PM (a 10-hour operating window, i.e., 600 minutes from 6:00 AM).</p>
+<h3 id="customers">Customers</h3>
+<p>On the day being planned, there are <strong>15 customers</strong> with confirmed delivery orders. Each customer has a delivery location, an order size (in standard tote equivalents), a delivery time window, and a service time.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Cust.</th>
+<th style="text-align: center;">X</th>
+<th style="text-align: center;">Y</th>
+<th style="text-align: center;">Demand (totes)</th>
+<th style="text-align: center;">Window Open</th>
+<th style="text-align: center;">Window Close</th>
+<th style="text-align: center;">Service (min)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">72</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">12</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">50</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">13:00</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">50</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">11:30</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">13:00</td>
+<td style="text-align: center;">15</td>
+</tr>
+<tr>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">10:00</td>
+<td style="text-align: center;">14:00</td>
+<td style="text-align: center;">14</td>
+</tr>
+<tr>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">9</td>
+<td style="text-align: center;">70</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">13:00</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">9:00</td>
+<td style="text-align: center;">12:30</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">11</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">12:00</td>
+<td style="text-align: center;">15:00</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">15</td>
+</tr>
+<tr>
+<td style="text-align: center;">13</td>
+<td style="text-align: center;">25</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">15:00</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">10:00</td>
+<td style="text-align: center;">13:30</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">33</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">8:00</td>
+<td style="text-align: center;">11:00</td>
+<td style="text-align: center;">12</td>
+</tr>
+</tbody>
+</table>
+<p>Total demand: 85 totes.</p>
+<h3 id="vehicle-fleet">Vehicle Fleet</h3>
+<p>FreshCart operates a <strong>homogeneous fleet</strong> of 5 identical delivery vans:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th style="text-align: center;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Number of vans</td>
+<td style="text-align: center;">5</td>
+</tr>
+<tr>
+<td>Capacity per van</td>
+<td style="text-align: center;">25 totes</td>
+</tr>
+<tr>
+<td>Fixed cost per trip</td>
+<td style="text-align: center;">$65</td>
+</tr>
+<tr>
+<td>Variable cost</td>
+<td style="text-align: center;">$1.00 per mile</td>
+</tr>
+<tr>
+<td>Maximum route duration</td>
+<td style="text-align: center;">540 minutes (9 hours)</td>
+</tr>
+</tbody>
+</table>
+<p>Not all vehicles must be used. A vehicle incurs its fixed cost only if dispatched.</p>
+<h3 id="travel-times-and-distances">Travel Times and Distances</h3>
+<p>Travel between any two locations uses Euclidean distance (in grid units). Convert to miles by multiplying by 0.5 (each grid unit = 0.5 miles). Travel speed is 25 mph in urban/residential areas, so travel time in minutes between locations <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> is:</p>
+<p><span class="math display">\[t_{ij} = \frac{d_{ij} \times 0.5}{25} \times 60 = 1.2 \times d_{ij} \text{ minutes}\]</span></p>
+<p>where <span class="math inline">\(d_{ij} = \sqrt{(x_i - x_j)^2 + (y_i - y_j)^2}\)</span> is the Euclidean distance in grid units.</p>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-model-formulation">Part 1: Model Formulation</h3>
+<p>Formulate a mixed-integer programming model for this CVRPTW.</p>
+<ol type="1">
+<li><p><strong>Decision variables</strong>: Define binary routing variables <span class="math inline">\(x_{ijk}\)</span> (whether vehicle <span class="math inline">\(k\)</span> travels directly from node <span class="math inline">\(i\)</span> to node <span class="math inline">\(j\)</span>), continuous time variables <span class="math inline">\(w_{ik}\)</span> (arrival time of vehicle <span class="math inline">\(k\)</span> at node <span class="math inline">\(i\)</span>), and any auxiliary variables needed.</p></li>
+<li><p><strong>Objective function</strong>: Minimize total delivery cost = fixed vehicle costs + variable travel costs.</p></li>
+<li><p><strong>Constraints</strong>: Formulate all of the following:</p>
+<ul>
+<li>Each customer is visited exactly once by exactly one vehicle.</li>
+<li>Route continuity (flow conservation at each customer node for each vehicle).</li>
+<li>Vehicle capacity constraints.</li>
+<li>Time window constraints with arrival time tracking.</li>
+<li>Depot departure and return constraints.</li>
+<li>Subtour elimination (choose and justify your approach: MTZ or flow-based).</li>
+<li>Maximum route duration.</li>
+</ul></li>
+<li><p><strong>Variable and constraint counts</strong>: Count the number of binary variables and constraints in your formulation. Is this problem tractable for an exact MIP solver?</p></li>
+<li><p><strong>Assumptions</strong>: Document any simplifying assumptions (e.g., symmetric travel times, no traffic variability).</p></li>
+</ol>
+<h3 id="part-2-implementation-and-solution">Part 2: Implementation and Solution</h3>
+<p>Implement the model in AMPL/Gurobi in a Google Colab notebook.</p>
+<ol type="1">
+<li><p><strong>Solve the model</strong>: Solve the MIP formulation. Set a time limit (e.g., 10 minutes) and report the best solution found, the MIP gap, and solve time.</p></li>
+<li><p><strong>Solution visualization</strong>: Create a plot (using matplotlib) showing all customer locations, the depot, and each vehicle’s route as a differently colored path.</p></li>
+<li><p><strong>Route summary table</strong>: For each vehicle used, report the ordered sequence of customers visited, total distance, total totes delivered, departure/arrival times, and route cost.</p></li>
+</ol>
+<h3 id="part-3-operational-analysis">Part 3: Operational Analysis</h3>
+<ol type="1">
+<li><p><strong>Fleet utilization</strong>: How many vehicles are used in the optimal solution? What is the average vehicle utilization (totes delivered / capacity)?</p></li>
+<li><p><strong>Time window analysis</strong>: Identify which customers have the tightest time windows. For the 3 tightest-window customers, solve the model with their windows widened by 1 hour and report any cost savings.</p></li>
+<li><p><strong>Capacity sensitivity</strong>: If FreshCart upgraded to larger vans (30-tote capacity) at a higher fixed cost of $80/trip, would it reduce total cost? Solve the modified model and compare.</p></li>
+<li><p><strong>Operations memo</strong>: Write a 1-page operational brief for FreshCart’s VP of Logistics summarizing the recommended daily routing plan, fleet utilization findings, and your recommendation on van capacity upgrades.</p></li>
+</ol>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown) with the CVRPTW model.</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with AMPL/Gurobi implementation, visualizations, analysis, and the operations memo.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

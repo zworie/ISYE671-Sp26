@@ -1,0 +1,20 @@
+# Safety net: instructor-only material must never be committed.
+*[Ss]olution*
+*SOLUTION*
+*[Aa]nswer*[Kk]ey*
+*[Mm]idterm*
+*[Ff]inal*[Ee]xam*
+*[Qq]ualifying*
+*[Ee]xam_*
+*[Ee]xam -*
+*[Ee]xam.*
+CLAUDE.md
+*planning*
+*[Oo]perational*[Pp]lan*
+*[Aa]ssessment*
+*student_work*
+
+# Local build clutter
+__pycache__/
+.DS_Store
+~$*

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Advanced Topics — Bilevel Optimization · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="bilevel-optimization.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="isye-671-advanced-topics-bilevel-optimization">ISYE 671: Advanced Topics — Bilevel Optimization</h1>
+<p><strong>Northern Illinois University — Spring 2026</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="motivation-when-two-decision-makers-interact">1. Motivation: When Two Decision-Makers Interact</h2>
+<p>All optimization problems studied so far have a single decision-maker: one objective, one set of constraints, one solver. But many real-world settings involve <strong>two decision-makers acting sequentially</strong>, where the second player reacts optimally to whatever the first player decides.</p>
+<p><strong>Motivating Example — Toll Road Pricing:</strong> A highway authority (the <em>leader</em>) sets tolls on a road network. Commuters (collectively, the <em>follower</em>) then choose routes to minimize their own travel cost, using or avoiding the toll roads accordingly. The authority wants to maximize revenue, but it cannot ignore how drivers will react — setting tolls too high drives commuters to alternate routes, reducing revenue. The authority must <em>anticipate the followers’ optimal response</em> when making its own decision.</p>
+<p>This is the structure of a <strong>bilevel optimization problem</strong>: the leader’s decision space is constrained by the condition that the follower is solving their own optimization problem.</p>
+<p>Other natural examples:</p>
+<ul>
+<li><strong>Competitive pricing</strong>: A company sets prices; consumers choose suppliers to minimize cost.</li>
+<li><strong>Network interdiction</strong>: A defender allocates resources to protect a network; an attacker then disrupts it optimally.</li>
+<li><strong>Facility location with strategic customers</strong>: A firm opens warehouses; customers independently choose the nearest (cheapest) facility.</li>
+<li><strong>Hyperparameter tuning in machine learning</strong>: An outer optimizer selects hyperparameters; an inner optimizer trains the model.</li>
+<li><strong>Tax policy design</strong>: A government sets tax rates; firms respond by relocating, investing, or restructuring.</li>
+</ul>
+<hr />
+<h2 id="problem-formulation">2. Problem Formulation</h2>
+<h3 id="general-bilevel-program">2.1 General Bilevel Program</h3>
+<p>Let <span class="math inline">\(x \in \mathbb{R}^n\)</span> be the <strong>leader’s decision</strong> and <span class="math inline">\(y \in \mathbb{R}^m\)</span> be the <strong>follower’s decision</strong>. The general bilevel program is:</p>
+<p><span class="math display">\[
+\begin{aligned}
+\min_{x,\, y} \quad &amp; F(x, y) \\
+\text{subject to} \quad &amp; G(x, y) \leq 0 \\
+&amp; y \in \arg\min_{y&#39;} \bigl\{ f(x, y&#39;) : g(x, y&#39;) \leq 0 \bigr\}
+\end{aligned}
+\]</span></p>
+<p>The key element is the <strong>lower-level constraint</strong>: <span class="math inline">\(y\)</span> must be an <em>optimal solution</em> to the follower’s problem given <span class="math inline">\(x\)</span>. This is not a standard feasibility constraint — it requires <span class="math inline">\(y\)</span> to solve an entire optimization problem parametrized by <span class="math inline">\(x\)</span>.</p>
+<p><strong>Notation:</strong> - <span class="math inline">\(F(x, y)\)</span>: leader’s objective (upper level) - <span class="math inline">\(G(x, y) \leq 0\)</span>: leader’s constraints - <span class="math inline">\(f(x, y)\)</span>: follower’s objective (lower level) - <span class="math inline">\(g(x, y) \leq 0\)</span>: follower’s constraints</p>
+<h3 id="the-toll-road-problem-formal">2.2 The Toll Road Problem (Formal)</h3>
+<p>Let <span class="math inline">\(A\)</span> be the set of toll arcs, <span class="math inline">\(P\)</span> the set of paths, <span class="math inline">\(c_p\)</span> the free travel cost on path <span class="math inline">\(p\)</span>, and <span class="math inline">\(\delta_{ap} = 1\)</span> if arc <span class="math inline">\(a\)</span> is on path <span class="math inline">\(p\)</span>. The leader charges toll <span class="math inline">\(t_a \geq 0\)</span> on each arc.</p>
+<p><strong>Leader (authority):</strong> <span class="math display">\[\max_{t \geq 0} \sum_{a \in A} t_a \sum_{p} \delta_{ap} f_p^*
+\]</span></p>
+<p>where <span class="math inline">\(f_p^*\)</span> is determined by the follower’s response.</p>
+<p><strong>Follower (commuters):</strong> <span class="math display">\[\min_{f \geq 0} \sum_p \left(c_p + \sum_a t_a \delta_{ap}\right) f_p \quad \text{s.t. flow conservation, demand satisfaction}\]</span></p>
+<p>The follower solves a shortest-path / min-cost flow problem for fixed <span class="math inline">\(t\)</span>. The leader must set <span class="math inline">\(t\)</span> before observing <span class="math inline">\(f^*\)</span>.</p>
+<hr />
+<h2 id="mathematical-structures-and-solution-approaches">3. Mathematical Structures and Solution Approaches</h2>
+<h3 id="the-core-difficulty">3.1 The Core Difficulty</h3>
+<p>Bilevel programs are, in general, <strong>NP-hard</strong> — even when both levels are linear programs. The difficulty comes from the lower-level optimality condition, which is: - Non-convex (the feasible set of <span class="math inline">\(x, y\)</span> pairs satisfying the lower-level optimality is generally non-convex) - Discontinuous (small changes in <span class="math inline">\(x\)</span> can cause the follower’s optimal <span class="math inline">\(y\)</span> to jump)</p>
+<p>The optimistic convention: when the follower has multiple optimal solutions, the leader assumes the most favorable one is chosen (standard in theory; not always realistic).</p>
+<h3 id="single-level-reformulation-via-kkt-conditions">3.2 Single-Level Reformulation via KKT Conditions</h3>
+<p>When the <strong>lower-level problem is a linear program or convex program</strong>, it can be replaced by its <strong>KKT optimality conditions</strong>, converting the bilevel program into a single-level (but nonconvex) mathematical program with complementarity constraints (MPCC).</p>
+<p>For a lower-level LP: <span class="math display">\[\min_y \ c^\top y \quad \text{s.t.} \quad Ay \geq b(x), \; y \geq 0\]</span></p>
+<p>The KKT conditions are: <span class="math display">\[A^\top \lambda = c, \quad \lambda \geq 0, \quad y \geq 0, \quad \lambda^\top (Ay - b(x)) = 0\]</span></p>
+<p>The <strong>complementarity condition</strong> <span class="math inline">\(\lambda_i (a_i^\top y - b_i) = 0\)</span> means either the dual variable is zero or the constraint is active — but not both can be strictly positive. This is a <strong>nonlinear constraint</strong> and is the source of computational difficulty.</p>
+<p><strong>Linearizing complementarity with binary variables:</strong> For bounded variables, complementarity <span class="math inline">\(0 \leq u \perp v \geq 0\)</span> can be linearized as: <span class="math display">\[u \leq M(1 - z), \quad v \leq Mz, \quad z \in \{0, 1\}\]</span></p>
+<p>using a big-M constant <span class="math inline">\(M\)</span>. This transforms the bilevel LP into a <strong>mixed-integer linear program (MILP)</strong>, solvable by Gurobi — but at the cost of introducing binary variables for each complementarity pair.</p>
+<blockquote>
+<p><strong>Connection to ISYE 671</strong>: The KKT linearization uses exactly the big-M techniques from our integer programming unit. The follower’s LP duality (strong duality) is also central: at optimality, the primal and dual objectives are equal, providing an additional linear constraint that tightens the reformulation.</p>
+</blockquote>
+<h3 id="network-interdiction-as-a-bilevel-mip">3.3 Network Interdiction as a Bilevel MIP</h3>
+<p><strong>Problem</strong>: A defender can remove (interdict) up to <span class="math inline">\(B\)</span> arcs from a network. An attacker then finds the shortest path through the remaining network. The defender wants to maximize the shortest path length the attacker must travel.</p>
+<p><strong>Leader (defender):</strong> <span class="math display">\[\max_{z \in \{0,1\}^{|A|}} \quad d^*(z) \quad \text{s.t.} \quad \sum_a z_a \leq B\]</span></p>
+<p>where <span class="math inline">\(z_a = 1\)</span> means arc <span class="math inline">\(a\)</span> is interdicted (removed), and <span class="math inline">\(d^*(z)\)</span> is the attacker’s shortest path length.</p>
+<p><strong>Follower (attacker):</strong> <span class="math display">\[d^*(z) = \min_{f} \sum_a (1 - z_a) c_a f_a \quad \text{s.t. shortest-path flow constraints}\]</span></p>
+<p>Applying LP duality to the follower (shortest path LP is a min-cost flow LP), the follower’s optimal value equals the maximum over dual variables. This converts the problem into a <strong>single-level integer program</strong> solvable in AMPL/Gurobi.</p>
+<p><strong>Example data:</strong> Five-node network with arcs, capacities, and costs. Budget <span class="math inline">\(B = 2\)</span>.</p>
+<table>
+<thead>
+<tr>
+<th>Arc</th>
+<th>From</th>
+<th>To</th>
+<th>Cost</th>
+<th>Interdicted?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>S</td>
+<td>1</td>
+<td>3</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>S</td>
+<td>2</td>
+<td>5</td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>T</td>
+<td>4</td>
+<td>—</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td>T</td>
+<td>2</td>
+<td>—</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1</td>
+<td>2</td>
+<td>1</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Without interdiction, the shortest path S→1→2→T has length 7. With <span class="math inline">\(B = 2\)</span> optimal interdictions (arcs 3 and 4), the attacker is forced to a path of length 12.</p>
+<hr />
+<h2 id="key-properties-and-complexity">4. Key Properties and Complexity</h2>
+<table>
+<colgroup>
+<col style="width: 55%" />
+<col style="width: 44%" />
+</colgroup>
+<thead>
+<tr>
+<th>Property</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Complexity</td>
+<td>NP-hard in general; <span class="math inline">\(\Sigma_2^p\)</span>-hard (harder than NP) for integer leaders</td>
+</tr>
+<tr>
+<td>Special cases</td>
+<td>LP-LP bilevel: polynomial with strong duality; convex-convex: KKT reformulation</td>
+</tr>
+<tr>
+<td>Optimal solution</td>
+<td>May not exist if follower’s problem is unbounded or infeasible for some <span class="math inline">\(x\)</span></td>
+</tr>
+<tr>
+<td>Reformulation</td>
+<td>KKT + big-M → MILP (exact but weak bounds); penalty methods (approximate)</td>
+</tr>
+<tr>
+<td>Software</td>
+<td>GAMS/MPEC libraries; Gurobi (after manual KKT reformulation); specialized solvers (PAVER, MiBS)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="practical-applications">5. Practical Applications</h2>
+<p><strong>Supply chain and pricing:</strong> A manufacturer sets wholesale prices; retailers independently optimize their own purchasing and selling decisions. The manufacturer must anticipate retail behavior. Solved as a bilevel LP or bilevel MIP depending on the retailer’s problem structure.</p>
+<p><strong>Energy markets:</strong> Electricity generators bid into a market; a market operator clears the market to minimize cost subject to grid constraints. Generators choose bids anticipating the clearing mechanism. Bilevel models are used to study strategic bidding and market power.</p>
+<p><strong>Transportation and infrastructure:</strong> Urban planners design road networks or transit systems; commuters then choose routes. The classic <em>network design problem</em> is bilevel: the designer maximizes social welfare, the users minimize personal cost (Wardrop equilibrium conditions). Used by the Chicago Metropolitan Agency for Planning and similar bodies.</p>
+<p><strong>Adversarial robustness and cybersecurity:</strong> A defender allocates security resources across a network; an attacker then chooses the most damaging attack vector. The defender must anticipate the attacker’s optimal response. Critical infrastructure protection (power grids, water networks) uses this framework.</p>
+<p><strong>Machine learning — hyperparameter optimization:</strong> Outer problem: choose hyperparameters <span class="math inline">\(\lambda\)</span> to minimize validation loss. Inner problem: train model weights <span class="math inline">\(\theta\)</span> to minimize training loss given <span class="math inline">\(\lambda\)</span>. Bilevel structure is explicit; gradient-based bilevel methods (implicit differentiation through the inner optimization) are the state of the art in meta-learning and neural architecture search.</p>
+<hr />
+<h2 id="recent-progress-and-open-frontiers">6. Recent Progress and Open Frontiers</h2>
+<p><strong>Exact algorithms:</strong> Branch-and-bound algorithms designed for bilevel MIPs (e.g., Fischetti et al., 2017; Tahernejad et al., 2020) incorporate cuts valid for the bilevel feasible set. Gurobi’s general-purpose MILP engine can solve KKT-reformulated bilevel LPs to optimality.</p>
+<p><strong>Gradient-based bilevel optimization:</strong> When both levels are smooth (e.g., neural network training), implicit differentiation allows computing <span class="math inline">\(\nabla_x F\)</span> through the inner optimum without unrolling the inner solver. This underpins meta-learning (MAML), neural architecture search (DARTS), and data poisoning attacks.</p>
+<p><strong>Data-driven bilevel programs:</strong> The follower’s behavior is not fully known but can be estimated from data (inverse optimization). This integrates statistical learning into the bilevel framework.</p>
+<p><strong>Distributionally robust bilevel programs:</strong> Combining bilevel structure with distributional uncertainty — a tri-level problem (leader, nature, follower). Active research area with applications in robust market design and infrastructure protection under uncertainty.</p>
+<hr />
+<h2 id="summary">7. Summary</h2>
+<table>
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 65%" />
+</colgroup>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Bilevel Optimization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Setting</strong></td>
+<td>Two decision-makers: leader acts first, follower reacts optimally</td>
+</tr>
+<tr>
+<td><strong>Key constraint</strong></td>
+<td><span class="math inline">\(y \in \arg\min\)</span> (follower’s problem) — not a standard linear constraint</td>
+</tr>
+<tr>
+<td><strong>Math tools</strong></td>
+<td>KKT conditions, LP duality, big-M linearization, complementarity</td>
+</tr>
+<tr>
+<td><strong>Computation</strong></td>
+<td>Reformulate to MILP (KKT + big-M) for LP lower levels; gradient methods for smooth lower levels</td>
+</tr>
+<tr>
+<td><strong>Hardness</strong></td>
+<td>NP-hard in general; harder than single-level MIP</td>
+</tr>
+<tr>
+<td><strong>Applications</strong></td>
+<td>Pricing, network design, interdiction, adversarial ML, energy markets</td>
+</tr>
+<tr>
+<td><strong>Connection to ISYE 671</strong></td>
+<td>LP duality, big-M, network flows — all directly used in reformulation</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Key insight</strong>: Bilevel optimization is not a niche subfield — it is the natural formulation whenever an optimizer must anticipate the rational response of another agent. The tools to solve it are largely the LP and IP tools already in your toolkit.</p>
+</blockquote>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Dempe, S. <em>Foundations of Bilevel Programming</em>. Springer, 2002.</li>
+<li>Colson, B., Marcotte, P., and Savard, G. “An overview of bilevel optimization.” <em>Annals of Operations Research</em>, 153(1):235–256, 2007.</li>
+<li>Fischetti, M., Ljubić, I., Monaci, M., and Sinnl, M. “A new general-purpose algorithm for mixed-integer bilevel linear programs.” <em>Operations Research</em>, 65(6):1615–1637, 2017.</li>
+<li>Smith, J.C. and Lim, C. “Algorithms for network interdiction and fortification games.” In <em>Pardalos and Rassia (eds.), Optimization Theory, Decision Making, and OR Applications</em>, 2012.</li>
+<li>Franceschi, L. et al. “Bilevel programming for hyperparameter optimization and meta-learning.” <em>ICML</em>, 2018.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

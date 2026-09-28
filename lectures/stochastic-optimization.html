@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="stochastic-optimization.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows">ISYE 671: Linear Optimization and Network Flows</h1>
+<h1 id="lecture-notes-stochastic-optimization">Lecture Notes — Stochastic Optimization</h1>
+<p><strong>Northern Illinois University — Spring 2026</strong> <strong>Instructor: Dr. Ziteng Wang</strong></p>
+<hr />
+<h2 id="introduction-why-uncertainty-matters">1. Introduction: Why Uncertainty Matters</h2>
+<p>Every optimization model we have studied so far in this course — LP, IP, network flows — assumes that all data (costs, capacities, demands, travel times) are <strong>known with certainty</strong>. In practice, this assumption is rarely true:</p>
+<ul>
+<li>Demand for products is uncertain when production decisions must be made.</li>
+<li>Travel times fluctuate due to weather and traffic.</li>
+<li>Supply quantities from vendors may be unreliable.</li>
+<li>Patient arrivals at an emergency department are stochastic.</li>
+</ul>
+<p><strong>Stochastic optimization</strong> extends the LP/IP framework to incorporate uncertainty explicitly. Rather than optimizing for a single scenario, we optimize over a <em>distribution</em> of possible scenarios, balancing the quality of decisions against the risk of bad outcomes.</p>
+<blockquote>
+<p><strong>Connection to prior material</strong>: The LP and IP models from earlier lectures become the <em>building blocks</em> of stochastic programs. If you can formulate a deterministic LP, you can extend it to a stochastic LP by replicating the model across scenarios and linking the copies through shared first-stage decisions.</p>
+</blockquote>
+<p>This lecture covers three major paradigms:</p>
+<ol type="1">
+<li><strong>Two-stage stochastic programming</strong> — the workhorse of stochastic optimization.</li>
+<li><strong>Chance-constrained programming</strong> — controlling the probability of constraint violation.</li>
+<li><strong>Robust optimization</strong> — protecting against worst-case uncertainty.</li>
+</ol>
+<hr />
+<h2 id="uncertainty-modeling-scenarios">2. Uncertainty Modeling: Scenarios</h2>
+<h3 id="the-scenario-approach">2.1 The Scenario Approach</h3>
+<p>The most common way to represent uncertainty in optimization is through <strong>discrete scenarios</strong>. Let <span class="math inline">\(\Omega = \{\omega_1, \omega_2, \ldots, \omega_S\}\)</span> be a finite set of scenarios, each occurring with probability <span class="math inline">\(p_s\)</span> (where <span class="math inline">\(\sum_{s=1}^{S} p_s = 1\)</span>). Each scenario <span class="math inline">\(\omega_s\)</span> specifies a realization of all uncertain parameters.</p>
+<p><strong>Example</strong>: A brewery must decide how much grain to purchase <em>before</em> knowing next month’s beer demand. Demand could be Low (4,000 barrels, probability 0.3), Medium (6,000 barrels, probability 0.5), or High (9,000 barrels, probability 0.2).</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Demand (barrels)</th>
+<th>Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\(\omega_1\)</span>: Low</td>
+<td>4,000</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td><span class="math inline">\(\omega_2\)</span>: Medium</td>
+<td>6,000</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td><span class="math inline">\(\omega_3\)</span>: High</td>
+<td>9,000</td>
+<td>0.2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-are-decisions-made">2.2 When Are Decisions Made?</h3>
+<p>The key modeling question is: <em>which decisions must be made before uncertainty is revealed, and which can wait?</em></p>
+<ul>
+<li><strong>Here-and-now decisions</strong> (first stage): Committed before observing the random outcome. Examples: capacity investment, raw material purchases, facility locations.</li>
+<li><strong>Wait-and-see decisions</strong> (second stage): Made after the scenario is revealed. Examples: production quantities, overtime scheduling, emergency procurement.</li>
+</ul>
+<p>This timing distinction is the foundation of two-stage stochastic programming.</p>
+<hr />
+<h2 id="two-stage-stochastic-linear-programming">3. Two-Stage Stochastic Linear Programming</h2>
+<h3 id="general-structure">3.1 General Structure</h3>
+<p>A two-stage stochastic LP has the form:</p>
+<p><strong>First stage:</strong></p>
+<p><span class="math display">\[\min_{x} \; c^\top x + \mathbb{E}_\omega \left[ Q(x, \omega) \right]\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[Ax = b, \quad x \geq 0\]</span></p>
+<p>where <span class="math inline">\(Q(x, \omega)\)</span> is the <strong>recourse function</strong> — the optimal value of the second-stage problem given first-stage decision <span class="math inline">\(x\)</span> and scenario <span class="math inline">\(\omega\)</span>:</p>
+<p><strong>Second stage</strong> (for each scenario <span class="math inline">\(\omega_s\)</span>):</p>
+<p><span class="math display">\[Q(x, \omega_s) = \min_{y_s} \; q_s^\top y_s\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[W y_s = h_s - T_s x, \quad y_s \geq 0\]</span></p>
+<p><strong>Interpretation of the components:</strong></p>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 34%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\(x\)</span></td>
+<td>First-stage decisions</td>
+<td>Grain purchased</td>
+</tr>
+<tr>
+<td><span class="math inline">\(c\)</span></td>
+<td>First-stage costs</td>
+<td>Purchase price</td>
+</tr>
+<tr>
+<td><span class="math inline">\(y_s\)</span></td>
+<td>Second-stage decisions under scenario <span class="math inline">\(s\)</span></td>
+<td>Production, overtime</td>
+</tr>
+<tr>
+<td><span class="math inline">\(q_s\)</span></td>
+<td>Second-stage costs</td>
+<td>Production and penalty costs</td>
+</tr>
+<tr>
+<td><span class="math inline">\(T_s\)</span></td>
+<td>Technology matrix linking stages</td>
+<td>How grain converts to beer</td>
+</tr>
+<tr>
+<td><span class="math inline">\(h_s\)</span></td>
+<td>Right-hand side under scenario <span class="math inline">\(s\)</span></td>
+<td>Demand realization</td>
+</tr>
+<tr>
+<td><span class="math inline">\(W\)</span></td>
+<td>Recourse matrix</td>
+<td>Production technology</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-deterministic-equivalent-extensive-form">3.2 The Deterministic Equivalent (Extensive Form)</h3>
+<p>For a finite number of scenarios, the two-stage stochastic LP can be reformulated as a single large LP called the <strong>deterministic equivalent</strong> or <strong>extensive form</strong>:</p>
+<p><span class="math display">\[\min \; c^\top x + \sum_{s=1}^{S} p_s \, q_s^\top y_s\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[Ax = b\]</span></p>
+<p><span class="math display">\[T_s x + W y_s = h_s \quad \forall \, s = 1, \ldots, S\]</span></p>
+<p><span class="math display">\[x \geq 0, \quad y_s \geq 0 \quad \forall \, s\]</span></p>
+<p>This is a <em>standard LP</em> — it can be solved directly with any LP solver, including AMPL/Gurobi. The structure is block-angular: the first-stage variables <span class="math inline">\(x\)</span> link all scenarios, while the second-stage variables <span class="math inline">\(y_s\)</span> are scenario-specific.</p>
+<p><span class="math display">\[\begin{bmatrix} A &amp; &amp; &amp; \\ T_1 &amp; W &amp; &amp; \\ T_2 &amp; &amp; W &amp; \\ \vdots &amp; &amp; &amp; \ddots \\ T_S &amp; &amp; &amp; &amp; W \end{bmatrix} \begin{bmatrix} x \\ y_1 \\ y_2 \\ \vdots \\ y_S \end{bmatrix} = \begin{bmatrix} b \\ h_1 \\ h_2 \\ \vdots \\ h_S \end{bmatrix}\]</span></p>
+<blockquote>
+<p><strong>Key insight</strong>: The extensive form grows linearly with the number of scenarios. With 3 scenarios, the model is roughly 3× the size of the deterministic version. With 1,000 scenarios, the model can become very large — motivating the decomposition methods covered in Lecture 3 (large-scale methods).</p>
+</blockquote>
+<h3 id="worked-example-brewery-grain-purchase">3.3 Worked Example: Brewery Grain Purchase</h3>
+<p><strong>Problem</strong>: Prairie Wind Brewing must purchase grain <em>now</em> (first stage) for next month’s production. Grain costs $50/unit. Each unit of grain yields 500 barrels of beer, which sells for $25/barrel. If demand exceeds production capacity, the brewery can buy emergency grain at $80/unit. Unsold beer is wasted (no salvage).</p>
+<p><strong>Scenarios</strong> (from Section 2.1):</p>
+<table>
+<thead>
+<tr>
+<th>Scenario <span class="math inline">\(s\)</span></th>
+<th>Demand <span class="math inline">\(d_s\)</span> (barrels)</th>
+<th>Probability <span class="math inline">\(p_s\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 (Low)</td>
+<td>4,000</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td>2 (Medium)</td>
+<td>6,000</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>3 (High)</td>
+<td>9,000</td>
+<td>0.2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>First-stage decision</strong>: <span class="math inline">\(x\)</span> = units of grain purchased now.</p>
+<p><strong>Second-stage decisions</strong> (per scenario <span class="math inline">\(s\)</span>): - <span class="math inline">\(y_s^{\text{prod}}\)</span> = barrels produced and sold - <span class="math inline">\(y_s^{\text{emerg}}\)</span> = units of emergency grain purchased - <span class="math inline">\(y_s^{\text{waste}}\)</span> = barrels of beer produced but unsold</p>
+<p><strong>Formulation:</strong></p>
+<p><span class="math display">\[\min \; 50x + \sum_{s=1}^{3} p_s \left[ 80 \, y_s^{\text{emerg}} - 25 \, y_s^{\text{prod}} \right]\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[y_s^{\text{prod}} \leq d_s \quad \forall \, s \qquad \text{(cannot sell more than demand)}\]</span></p>
+<p><span class="math display">\[y_s^{\text{prod}} \leq 500(x + y_s^{\text{emerg}}) \quad \forall \, s \qquad \text{(production limited by total grain)}\]</span></p>
+<p><span class="math display">\[y_s^{\text{waste}} = 500(x + y_s^{\text{emerg}}) - y_s^{\text{prod}} \quad \forall \, s \qquad \text{(waste = excess production)}\]</span></p>
+<p><span class="math display">\[x \geq 0, \quad y_s^{\text{prod}}, y_s^{\text{emerg}}, y_s^{\text{waste}} \geq 0 \quad \forall \, s\]</span></p>
+<p>This is a single LP with <span class="math inline">\(1 + 3 \times 3 = 10\)</span> variables and can be solved directly in AMPL.</p>
+<p><em>(Full AMPL implementation is provided in the companion Colab notebook.)</em></p>
+<h3 id="value-of-the-stochastic-solution-vss">3.4 Value of the Stochastic Solution (VSS)</h3>
+<p>How much do we gain by modeling uncertainty explicitly? The <strong>value of the stochastic solution</strong> quantifies this.</p>
+<p><strong>Definitions:</strong></p>
+<ol type="1">
+<li><strong>Expected Value (EV) solution</strong>: Replace all random parameters with their expected values, solve the resulting deterministic model, and obtain decision <span class="math inline">\(x^{EV}\)</span>.</li>
+<li><strong>Expected result of the EV solution (EEV)</strong>: Evaluate <span class="math inline">\(x^{EV}\)</span> across all scenarios: <span class="math inline">\(EEV = c^\top x^{EV} + \sum_s p_s \, Q(x^{EV}, \omega_s)\)</span>.</li>
+<li><strong>Recourse Problem (RP) solution</strong>: Solve the full stochastic program to get optimal <span class="math inline">\(x^{RP}\)</span> with objective <span class="math inline">\(RP\)</span>.</li>
+</ol>
+<p>Then:</p>
+<p><span class="math display">\[VSS = EEV - RP\]</span></p>
+<p>The VSS measures the expected cost savings from using the stochastic model instead of the naive expected-value approach. A large VSS indicates that uncertainty significantly impacts the optimal decision, justifying the added modeling complexity.</p>
+<h3 id="wait-and-see-ws-and-expected-value-of-perfect-information-evpi">3.5 Wait-and-See (WS) and Expected Value of Perfect Information (EVPI)</h3>
+<p>If we could know the future perfectly, we would solve each scenario independently:</p>
+<p><span class="math display">\[WS = \sum_{s=1}^{S} p_s \, z_s^*\]</span></p>
+<p>where <span class="math inline">\(z_s^*\)</span> is the optimal objective for scenario <span class="math inline">\(s\)</span> alone (choosing both <span class="math inline">\(x\)</span> and <span class="math inline">\(y_s\)</span> optimally).</p>
+<p>The <strong>expected value of perfect information</strong> is:</p>
+<p><span class="math display">\[EVPI = RP - WS\]</span></p>
+<p>The EVPI represents the maximum amount we should pay for a perfect forecast. It provides an upper bound on the value of any information-gathering activity (market research, better sensors, etc.).</p>
+<p><strong>Summary of key quantities:</strong></p>
+<p><span class="math display">\[WS \leq RP \leq EEV\]</span></p>
+<p><span class="math display">\[EVPI = RP - WS \geq 0, \qquad VSS = EEV - RP \geq 0\]</span></p>
+<hr />
+<h2 id="chance-constrained-programming">4. Chance-Constrained Programming</h2>
+<h3 id="motivation">4.1 Motivation</h3>
+<p>Sometimes, rather than optimizing the expected cost of recourse, we want to ensure that constraints are satisfied with high probability. This leads to <strong>chance-constrained programming</strong>.</p>
+<p><strong>Example</strong>: A hospital must staff enough nurses so that patient demand is met at least 95% of the time. We do not want to build an explicit recourse model — we simply want the schedule to be feasible in 95% of scenarios.</p>
+<h3 id="individual-chance-constraints">4.2 Individual Chance Constraints</h3>
+<p>An individual chance constraint has the form:</p>
+<p><span class="math display">\[\Pr\left( a(\omega)^\top x \leq b(\omega) \right) \geq 1 - \epsilon\]</span></p>
+<p>where <span class="math inline">\(\epsilon\)</span> is the allowed probability of violation (e.g., <span class="math inline">\(\epsilon = 0.05\)</span> for 95% reliability).</p>
+<p><strong>Scenario-based reformulation</strong>: With discrete scenarios <span class="math inline">\(\{1, \ldots, S\}\)</span>, introduce binary indicator variables <span class="math inline">\(z_s \in \{0, 1\}\)</span>:</p>
+<p><span class="math display">\[a_s^\top x \leq b_s + M z_s \quad \forall \, s = 1, \ldots, S\]</span></p>
+<p><span class="math display">\[\sum_{s=1}^{S} p_s \, z_s \leq \epsilon\]</span></p>
+<p><span class="math display">\[z_s \in \{0, 1\}\]</span></p>
+<p>Here, <span class="math inline">\(z_s = 1\)</span> means the constraint is violated in scenario <span class="math inline">\(s\)</span>, and the second constraint ensures the total probability of violation does not exceed <span class="math inline">\(\epsilon\)</span>. This converts the chance constraint into a <strong>mixed-integer program</strong>.</p>
+<h3 id="joint-chance-constraints">4.3 Joint Chance Constraints</h3>
+<p>A joint chance constraint requires that <em>all</em> constraints in a system are satisfied simultaneously with high probability:</p>
+<p><span class="math display">\[\Pr\left( A(\omega) x \leq b(\omega) \right) \geq 1 - \epsilon\]</span></p>
+<p>The scenario-based reformulation uses a single indicator per scenario:</p>
+<p><span class="math display">\[A_s x \leq b_s + M z_s \cdot \mathbf{1} \quad \forall \, s\]</span></p>
+<p><span class="math display">\[\sum_{s=1}^{S} p_s \, z_s \leq \epsilon\]</span></p>
+<p>This is more restrictive than individual chance constraints (it requires all constraints to hold simultaneously in <span class="math inline">\(1-\epsilon\)</span> fraction of scenarios).</p>
+<h3 id="comparison-of-approaches">4.4 Comparison of Approaches</h3>
+<table>
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 40%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Two-Stage Recourse</th>
+<th>Chance Constraints</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Philosophy</td>
+<td>Optimize expected cost of corrective actions</td>
+<td>Ensure feasibility with high probability</td>
+</tr>
+<tr>
+<td>Decision structure</td>
+<td>First and second stage</td>
+<td>Single stage</td>
+</tr>
+<tr>
+<td>Model type</td>
+<td>LP (extensive form)</td>
+<td>MIP (binary indicators)</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>Decisions + recourse plan per scenario</td>
+<td>Decisions + reliability guarantee</td>
+</tr>
+<tr>
+<td>When to use</td>
+<td>When corrective actions exist and have known costs</td>
+<td>When hard feasibility is required</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="robust-optimization">5. Robust Optimization</h2>
+<h3 id="motivation-1">5.1 Motivation</h3>
+<p>Stochastic programming requires probability distributions for uncertain parameters. When these distributions are unknown or unreliable, <strong>robust optimization</strong> provides an alternative: optimize against the <em>worst case</em> within an <strong>uncertainty set</strong>.</p>
+<h3 id="the-robust-counterpart">5.2 The Robust Counterpart</h3>
+<p>Consider the LP:</p>
+<p><span class="math display">\[\min \; c^\top x \quad \text{subject to} \quad a_i^\top x \leq b_i, \; i = 1, \ldots, m\]</span></p>
+<p>If the constraint coefficients <span class="math inline">\(a_i\)</span> are uncertain and lie in an uncertainty set <span class="math inline">\(\mathcal{U}_i\)</span>, the robust counterpart requires feasibility for <em>all</em> realizations:</p>
+<p><span class="math display">\[\min \; c^\top x \quad \text{subject to} \quad a_i^\top x \leq b_i \quad \forall \, a_i \in \mathcal{U}_i, \; i = 1, \ldots, m\]</span></p>
+<p>The shape of <span class="math inline">\(\mathcal{U}_i\)</span> determines the tractability and conservatism of the robust model.</p>
+<h3 id="common-uncertainty-sets">5.3 Common Uncertainty Sets</h3>
+<p><strong>Box uncertainty</strong> (interval): Each coefficient varies independently within an interval.</p>
+<p><span class="math display">\[\mathcal{U}_i = \{ a_i : | a_{ij} - \bar{a}_{ij} | \leq \hat{a}_{ij}, \; \forall j \}\]</span></p>
+<p>The robust counterpart replaces each constraint with:</p>
+<p><span class="math display">\[\bar{a}_i^\top x + \sum_j \hat{a}_{ij} |x_j| \leq b_i\]</span></p>
+<p>For <span class="math inline">\(x \geq 0\)</span>, this simplifies to <span class="math inline">\((\bar{a}_i + \hat{a}_i)^\top x \leq b_i\)</span>, which is a <em>single linear constraint</em>. This is the most conservative: it protects against all coefficients being at their worst simultaneously.</p>
+<p><strong>Ellipsoidal uncertainty</strong>: Coefficients are correlated and lie within an ellipsoid.</p>
+<p><span class="math display">\[\mathcal{U}_i = \{ a_i : \| \Sigma_i^{-1/2} (a_i - \bar{a}_i) \|_2 \leq \Gamma_i \}\]</span></p>
+<p>The robust counterpart introduces a second-order cone constraint:</p>
+<p><span class="math display">\[\bar{a}_i^\top x + \Gamma_i \| \Sigma_i^{1/2} x \|_2 \leq b_i\]</span></p>
+<p>This is a <strong>second-order cone program (SOCP)</strong>, which Gurobi can solve natively.</p>
+<p><strong>Budget uncertainty</strong> (Bertsimas–Sim): At most <span class="math inline">\(\Gamma_i\)</span> coefficients deviate from their nominal values simultaneously.</p>
+<p><span class="math display">\[\mathcal{U}_i = \left\{ a_i : a_{ij} = \bar{a}_{ij} + \hat{a}_{ij} \zeta_{ij}, \; |\zeta_{ij}| \leq 1, \; \sum_j |\zeta_{ij}| \leq \Gamma_i \right\}\]</span></p>
+<p>The parameter <span class="math inline">\(\Gamma_i \in [0, n]\)</span> controls the degree of conservatism. When <span class="math inline">\(\Gamma_i = 0\)</span>, the model reduces to the nominal (deterministic) LP. When <span class="math inline">\(\Gamma_i = n\)</span>, it is equivalent to box uncertainty. The budget robust counterpart is an LP, making it both tractable and flexible:</p>
+<p><span class="math display">\[\bar{a}_i^\top x + \max_{\zeta \in \mathcal{Z}_i} \sum_j \hat{a}_{ij} \zeta_{ij} x_j \leq b_i\]</span></p>
+<p>which can be reformulated with auxiliary variables as:</p>
+<p><span class="math display">\[\bar{a}_i^\top x + \Gamma_i \lambda_i + \sum_j \mu_{ij} \leq b_i\]</span></p>
+<p><span class="math display">\[\lambda_i + \mu_{ij} \geq \hat{a}_{ij} |x_j| \quad \forall \, j\]</span></p>
+<p><span class="math display">\[\lambda_i, \mu_{ij} \geq 0\]</span></p>
+<h3 id="comparison-stochastic-vs.-robust">5.4 Comparison: Stochastic vs. Robust</h3>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 44%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Stochastic Programming</th>
+<th>Robust Optimization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Uncertainty model</td>
+<td>Probability distribution (scenarios)</td>
+<td>Uncertainty set (no probabilities)</td>
+</tr>
+<tr>
+<td>Objective</td>
+<td>Minimize expected cost</td>
+<td>Minimize worst-case cost</td>
+</tr>
+<tr>
+<td>Conservatism</td>
+<td>Moderate (averages over scenarios)</td>
+<td>Higher (protects against worst case)</td>
+</tr>
+<tr>
+<td>Data requirement</td>
+<td>Scenario probabilities</td>
+<td>Uncertainty set bounds</td>
+</tr>
+<tr>
+<td>Model size</td>
+<td>Grows with number of scenarios</td>
+<td>Grows with size of uncertainty set</td>
+</tr>
+<tr>
+<td>Tractability</td>
+<td>LP (extensive form)</td>
+<td>LP, SOCP, or MIP depending on set</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Practical guidance</strong>: Use stochastic programming when reliable probability data is available (historical demand records, simulation). Use robust optimization when you know the range of uncertainty but not its distribution (new product launch, novel supply chain disruption).</p>
+</blockquote>
+<hr />
+<h2 id="stochastic-integer-programming-brief-overview">6. Stochastic Integer Programming (Brief Overview)</h2>
+<p>When first-stage decisions are integer (e.g., facility location under uncertain demand), the problem becomes a <strong>stochastic integer program</strong>. The extensive form is a large MIP:</p>
+<p><span class="math display">\[\min \; c^\top x + \sum_{s=1}^{S} p_s \, q_s^\top y_s\]</span></p>
+<p>subject to:</p>
+<p><span class="math display">\[Ax = b, \quad T_s x + W y_s = h_s \; \forall \, s, \quad x \in \mathbb{Z}^{n_1}, \; y_s \geq 0\]</span></p>
+<p>This is computationally much harder than the LP case. The block-angular structure can be exploited by decomposition methods (Benders decomposition, L-shaped method) — topics we will discuss in the next lecture on large-scale methods.</p>
+<p><strong>Example</strong>: Deciding where to build warehouses (integer, first stage) to serve stochastic regional demands (continuous, second stage) is a stochastic facility location problem. We studied the deterministic version earlier; the stochastic extension replicates the demand-serving constraints across scenarios.</p>
+<hr />
+<h2 id="modeling-stochastic-programs-in-ampl">7. Modeling Stochastic Programs in AMPL</h2>
+<p>Stochastic programs with discrete scenarios can be modeled directly in AMPL by indexing over scenarios. The key pattern is:</p>
+<pre><code>set SCENARIOS;
+param prob{SCENARIOS};
+
+# First-stage variables (not indexed by scenario)
+var x &gt;= 0;
+
+# Second-stage variables (indexed by scenario)
+var y{SCENARIOS} &gt;= 0;
+
+# Objective: first-stage cost + expected second-stage cost
+minimize total_cost:
+    c * x + sum{s in SCENARIOS} prob[s] * q[s] * y[s];
+
+# First-stage constraints
+subject to first_stage_constraint: ...;
+
+# Second-stage constraints (one per scenario)
+subject to second_stage{s in SCENARIOS}: ... ;</code></pre>
+<p>This is the <strong>explicit extensive form</strong> approach. For modest numbers of scenarios (up to hundreds), this works well with Gurobi through AMPL. For thousands of scenarios, decomposition methods or specialized stochastic programming solvers (such as PySP or SMPS-format solvers) are needed.</p>
+<hr />
+<h2 id="exercises">8. Exercises</h2>
+<p><strong>Exercise 1 (Two-Stage Formulation)</strong>. A regional clinic must order flu vaccines in September (cost: $12/dose) before knowing the severity of flu season. Unused vaccines expire worthless. If demand exceeds supply, emergency doses cost $28 each. Revenue per administered dose is $20. Scenarios: Mild (5,000 doses needed, prob. 0.4), Moderate (8,000 doses, prob. 0.4), Severe (12,000 doses, prob. 0.2). Formulate the two-stage stochastic LP. Identify the first-stage and second-stage decisions.</p>
+<p><strong>Exercise 2 (Extensive Form and Solution)</strong>. Write the deterministic equivalent of Exercise 1 as a single LP. Implement and solve in AMPL. Report the optimal order quantity and expected total cost.</p>
+<p><strong>Exercise 3 (VSS and EVPI)</strong>. For the flu vaccine problem: (a) Compute the EV solution and the EEV. (b) Compute the WS bound. (c) Calculate VSS and EVPI. Interpret both values in the context of the clinic’s decision.</p>
+<p><strong>Exercise 4 (Chance Constraints)</strong>. A food bank must decide how much warehouse space to lease. Monthly donation volumes are uncertain across 10 scenarios (given in data). The food bank wants to ensure that donations can be stored without overflow in at least 90% of scenarios. Formulate this as a chance-constrained program. How does the solution change if the reliability target increases to 95%?</p>
+<p><strong>Exercise 5 (Robust Optimization)</strong>. Revisit the food bank warehouse problem from Exercise 4. Instead of using scenarios, suppose you only know that monthly donations lie within <span class="math inline">\(\pm 20\%\)</span> of their expected value. Formulate the robust counterpart using box uncertainty. Compare the leased space to the stochastic solution from Exercise 4. Which approach is more conservative, and why?</p>
+<p><strong>Exercise 6 (Modeling Judgment)</strong>. A manufacturing company is deciding whether to build a new plant (binary decision, $5M cost) to serve demand that could be Low, Medium, or High over the next 5 years. If the plant is built, production is cheap ($10/unit). If not built, they outsource at $25/unit. (a) Is this a two-stage stochastic LP or a stochastic IP? Why? (b) Formulate the problem. (c) Discuss whether decomposition might help solve larger versions of this problem.</p>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Rardin, R.L. <em>Optimization in Operations Research</em>, 2nd edition. Chapter 16 (stochastic programming overview).</li>
+<li>Birge, J.R. and Louveaux, F. <em>Introduction to Stochastic Programming</em>, 2nd edition. Springer, 2011.</li>
+<li>Ben-Tal, A., El Ghaoui, L., and Nemirovski, A. <em>Robust Optimization</em>. Princeton University Press, 2009.</li>
+<li>Bertsimas, D. and Sim, M. “The price of robustness.” <em>Operations Research</em>, 52(1):35–53, 2004.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

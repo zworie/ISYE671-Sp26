@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 2: Integer Programming · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-2-integer-programming.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-2-integer-programming">Case Study 2: Integer Programming</h1>
+<h2 id="distribution-network-design-for-a-regional-food-bank">Distribution Network Design for a Regional Food Bank</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>The Northern Illinois Community Food Bank (NICFB) serves 11 counties across northern Illinois. The organization currently operates out of a single aging warehouse in Rockford and distributes food to 85 partner agencies (pantries, shelters, soup kitchens, after-school programs). Over the past five years, demand for food assistance has grown 40%, and the existing facility is at capacity. NICFB has received a $12 million capital grant from a foundation, and the board has decided to redesign its distribution network by opening new warehouse/distribution centers and potentially closing or downsizing the existing one.</p>
+<p>You have been hired as a consultant to determine the optimal network configuration: which facilities to open, what capacity to build, which agencies to serve from each facility, and what vehicle fleet to acquire — all while respecting budget constraints, service-level requirements, and the unique operational realities of food banking.</p>
+<hr />
+<h2 id="problem-data">Problem Data</h2>
+<h3 id="candidate-facility-locations">Candidate Facility Locations</h3>
+<p>NICFB has identified 7 candidate locations for warehouse/distribution centers. Each location can be built at one of three capacity tiers (Small, Medium, Large). The existing Rockford facility can be retained at its current size or closed.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 33%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">ID</th>
+<th>Location</th>
+<th style="text-align: center;">Small (sq ft / cost)</th>
+<th style="text-align: center;">Medium (sq ft / cost)</th>
+<th style="text-align: center;">Large (sq ft / cost)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">F1</td>
+<td>Rockford (existing)</td>
+<td style="text-align: center;">15,000 / $0 (retain)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: center;">F2</td>
+<td>DeKalb</td>
+<td style="text-align: center;">8,000 / $1.2M</td>
+<td style="text-align: center;">15,000 / $2.1M</td>
+<td style="text-align: center;">25,000 / $3.5M</td>
+</tr>
+<tr>
+<td style="text-align: center;">F3</td>
+<td>Sterling</td>
+<td style="text-align: center;">8,000 / $1.0M</td>
+<td style="text-align: center;">15,000 / $1.8M</td>
+<td style="text-align: center;">25,000 / $3.0M</td>
+</tr>
+<tr>
+<td style="text-align: center;">F4</td>
+<td>Oregon</td>
+<td style="text-align: center;">6,000 / $0.8M</td>
+<td style="text-align: center;">12,000 / $1.5M</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: center;">F5</td>
+<td>Freeport</td>
+<td style="text-align: center;">8,000 / $1.1M</td>
+<td style="text-align: center;">15,000 / $1.9M</td>
+<td style="text-align: center;">25,000 / $3.2M</td>
+</tr>
+<tr>
+<td style="text-align: center;">F6</td>
+<td>Belvidere</td>
+<td style="text-align: center;">6,000 / $0.7M</td>
+<td style="text-align: center;">12,000 / $1.4M</td>
+<td style="text-align: center;">20,000 / $2.5M</td>
+</tr>
+<tr>
+<td style="text-align: center;">F7</td>
+<td>Sycamore</td>
+<td style="text-align: center;">6,000 / $0.8M</td>
+<td style="text-align: center;">12,000 / $1.5M</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: center;">F8</td>
+<td>Mendota</td>
+<td style="text-align: center;">6,000 / $0.9M</td>
+<td style="text-align: center;">12,000 / $1.6M</td>
+<td style="text-align: center;">—</td>
+</tr>
+</tbody>
+</table>
+<p>If the Rockford facility (F1) is closed, there is a one-time closure cost of $200,000 (lease termination, moving equipment). The existing facility has fixed annual operating costs of $180,000 regardless of utilization. If F1 is retained, it can additionally be renovated to Medium capacity (15,000 sq ft) for $1.5M or Large (25,000 sq ft) for $3.8M.</p>
+<p><strong>Annual operating costs</strong> per facility (includes utilities, insurance, basic staffing):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Tier</th>
+<th style="text-align: center;">Annual Operating Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">Small</td>
+<td style="text-align: center;">$120,000</td>
+</tr>
+<tr>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">$200,000</td>
+</tr>
+<tr>
+<td style="text-align: center;">Large</td>
+<td style="text-align: center;">$310,000</td>
+</tr>
+</tbody>
+</table>
+<p>Each square foot of warehouse space can support approximately 25 pounds of food throughput per week.</p>
+<h3 id="partner-agencies">Partner Agencies</h3>
+<p>The 85 partner agencies are grouped into 18 demand zones based on geographic proximity. Each zone has the following attributes:</p>
+<table>
+<colgroup>
+<col style="width: 17%" />
+<col style="width: 34%" />
+<col style="width: 17%" />
+<col style="width: 13%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Zone</th>
+<th>Counties</th>
+<th style="text-align: center;">Number of Agencies</th>
+<th style="text-align: right;">Weekly Demand (lbs)</th>
+<th style="text-align: center;">Max Acceptable Distance to Facility (miles)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">Z1</td>
+<td>Winnebago (urban)</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: right;">42,000</td>
+<td style="text-align: center;">20</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z2</td>
+<td>Winnebago (rural)</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">11,000</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z3</td>
+<td>Boone</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: right;">14,500</td>
+<td style="text-align: center;">25</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z4</td>
+<td>McHenry (west)</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">12,000</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z5</td>
+<td>DeKalb (urban)</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: right;">28,000</td>
+<td style="text-align: center;">20</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z6</td>
+<td>DeKalb (rural)</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: right;">8,500</td>
+<td style="text-align: center;">35</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z7</td>
+<td>Lee (north)</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z8</td>
+<td>Lee (south)</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: right;">7,500</td>
+<td style="text-align: center;">35</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z9</td>
+<td>Ogle</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: right;">13,000</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z10</td>
+<td>Whiteside</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: right;">15,500</td>
+<td style="text-align: center;">25</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z11</td>
+<td>Stephenson</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: right;">16,000</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z12</td>
+<td>Jo Daviess</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: right;">6,500</td>
+<td style="text-align: center;">40</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z13</td>
+<td>Carroll</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: right;">5,500</td>
+<td style="text-align: center;">35</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z14</td>
+<td>LaSalle (north)</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">11,500</td>
+<td style="text-align: center;">30</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z15</td>
+<td>LaSalle (south)</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: right;">8,000</td>
+<td style="text-align: center;">40</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z16</td>
+<td>Bureau</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">9,000</td>
+<td style="text-align: center;">35</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z17</td>
+<td>Kendall</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: right;">18,000</td>
+<td style="text-align: center;">25</td>
+</tr>
+<tr>
+<td style="text-align: center;">Z18</td>
+<td>Putnam</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: right;">3,500</td>
+<td style="text-align: center;">40</td>
+</tr>
+</tbody>
+</table>
+<p>Total weekly demand: approximately 240,000 lbs.</p>
+<h3 id="distance-matrix-miles-facility-to-zone-centroid">Distance Matrix (miles, facility to zone centroid)</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;"></th>
+<th style="text-align: center;">Z1</th>
+<th style="text-align: center;">Z2</th>
+<th style="text-align: center;">Z3</th>
+<th style="text-align: center;">Z4</th>
+<th style="text-align: center;">Z5</th>
+<th style="text-align: center;">Z6</th>
+<th style="text-align: center;">Z7</th>
+<th style="text-align: center;">Z8</th>
+<th style="text-align: center;">Z9</th>
+<th style="text-align: center;">Z10</th>
+<th style="text-align: center;">Z11</th>
+<th style="text-align: center;">Z12</th>
+<th style="text-align: center;">Z13</th>
+<th style="text-align: center;">Z14</th>
+<th style="text-align: center;">Z15</th>
+<th style="text-align: center;">Z16</th>
+<th style="text-align: center;">Z17</th>
+<th style="text-align: center;">Z18</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">F1</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">25</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">72</td>
+<td style="text-align: center;">85</td>
+<td style="text-align: center;">78</td>
+<td style="text-align: center;">68</td>
+<td style="text-align: center;">90</td>
+</tr>
+<tr>
+<td style="text-align: center;">F2</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">40</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">65</td>
+</tr>
+<tr>
+<td style="text-align: center;">F3</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">50</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">48</td>
+</tr>
+<tr>
+<td style="text-align: center;">F4</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">65</td>
+</tr>
+<tr>
+<td style="text-align: center;">F5</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">68</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">75</td>
+<td style="text-align: center;">88</td>
+<td style="text-align: center;">80</td>
+<td style="text-align: center;">82</td>
+<td style="text-align: center;">95</td>
+</tr>
+<tr>
+<td style="text-align: center;">F6</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">38</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">68</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">72</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">75</td>
+</tr>
+<tr>
+<td style="text-align: center;">F7</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">42</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">78</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">68</td>
+</tr>
+<tr>
+<td style="text-align: center;">F8</td>
+<td style="text-align: center;">82</td>
+<td style="text-align: center;">75</td>
+<td style="text-align: center;">72</td>
+<td style="text-align: center;">70</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">25</td>
+<td style="text-align: center;">52</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: center;">72</td>
+<td style="text-align: center;">82</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">62</td>
+<td style="text-align: center;">25</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vehicle-fleet">Vehicle Fleet</h3>
+<p>NICFB must also decide what delivery vehicles to acquire. Vehicles are purchased (one-time capital cost from the $12M grant) and have annual operating costs:</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th>Vehicle Type</th>
+<th style="text-align: center;">Capacity (lbs)</th>
+<th style="text-align: center;">Purchase Cost</th>
+<th style="text-align: center;">Annual Operating Cost</th>
+<th style="text-align: center;">Max Deliveries/Week</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cargo Van</td>
+<td style="text-align: center;">3,000</td>
+<td style="text-align: center;">$45,000</td>
+<td style="text-align: center;">$18,000</td>
+<td style="text-align: center;">12</td>
+</tr>
+<tr>
+<td>Box Truck (16 ft)</td>
+<td style="text-align: center;">6,000</td>
+<td style="text-align: center;">$65,000</td>
+<td style="text-align: center;">$25,000</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td>Refrigerated Truck (24 ft)</td>
+<td style="text-align: center;">10,000</td>
+<td style="text-align: center;">$110,000</td>
+<td style="text-align: center;">$38,000</td>
+<td style="text-align: center;">8</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fleet constraints:</strong> - Each facility must have at least 1 refrigerated truck (cold chain requirements). - Total fleet size across all open facilities cannot exceed 25 vehicles (driver availability). - Vehicles are assigned to (home-based at) specific facilities. - Each delivery from a facility to a zone requires one round trip. A vehicle serving a zone within 20 miles can make the round trip and do another delivery the same day (counts as 1 delivery toward its weekly max). Beyond 20 miles, a delivery consumes an entire half-day (counts as 1.5 deliveries toward its weekly max).</p>
+<h3 id="budget-and-planning-horizon">Budget and Planning Horizon</h3>
+<p>The $12 million capital grant must cover all facility construction/renovation, closure costs, and vehicle purchases. NICFB wants to <strong>minimize total annual operating cost</strong> (facility operating costs + vehicle operating costs + transportation cost) over the planning horizon.</p>
+<p><strong>Transportation cost</strong>: $2.50 per mile per delivery trip (round-trip distance = 2 × one-way distance from distance matrix).</p>
+<p>The planning horizon for evaluating operating costs is 5 years. The objective should account for both one-time capital expenditures and the present value of 5 years of annual operating costs (use a discount rate of 4%).</p>
+<h3 id="service-requirements">Service Requirements</h3>
+<ol type="1">
+<li><strong>Coverage</strong>: Every demand zone must be served by exactly one facility.</li>
+<li><strong>Distance</strong>: No zone may be assigned to a facility beyond its maximum acceptable distance.</li>
+<li><strong>Capacity</strong>: Total weekly demand assigned to a facility must not exceed its throughput capacity.</li>
+<li><strong>Delivery feasibility</strong>: Each facility must have sufficient vehicle capacity (total lbs per week across its fleet) to deliver all assigned demand, and sufficient delivery slots per week.</li>
+<li><strong>Equity</strong>: No single facility may serve more than 40% of total system demand (to avoid single-point-of-failure risk).</li>
+<li><strong>Minimum facilities</strong>: At least 2 facilities must be open (for redundancy).</li>
+</ol>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-model-formulation">Part 1: Model Formulation</h3>
+<p>Formulate a mixed-integer programming model. Your formulation should clearly define:</p>
+<ol type="1">
+<li><strong>Sets and indices</strong> for facilities, capacity tiers, zones, and vehicle types.</li>
+<li><strong>Parameters</strong> with clear notation matching the data above.</li>
+<li><strong>Decision variables</strong>: You will need binary variables for facility location and tier selection, integer variables for vehicle fleet composition, and continuous or integer variables for zone assignments and delivery logistics.</li>
+<li><strong>Objective function</strong>: Minimize total cost (capital + discounted annual operating costs). Write out the NPV calculation explicitly.</li>
+<li><strong>Constraints</strong>: All service requirements, budget constraints, capacity constraints, fleet constraints, and logical constraints (e.g., at most one tier per facility, can only assign zones to open facilities).</li>
+<li><strong>Modeling choices</strong>: Document any assumptions. In particular, address how you handle the fixed-charge nature of facility costs, the conditional renovation/closure logic for F1, and the delivery counting rule for distances beyond 20 miles.</li>
+</ol>
+<h3 id="part-2-implementation-and-solution">Part 2: Implementation and Solution</h3>
+<p>Implement your model in AMPL with Gurobi in a Google Colab notebook.</p>
+<ol type="1">
+<li><p>Solve the model and report: which facilities open at which tier, the zone-to-facility assignment map, the vehicle fleet at each facility, and the total cost breakdown (capital vs. annual operating vs. transportation).</p></li>
+<li><p>Produce a clear summary table and, if possible, a simple visualization (e.g., a map or network diagram using matplotlib/networkx) showing the recommended network.</p></li>
+<li><p>Report the MIP gap achieved and solve time. If the model does not solve to optimality within a reasonable time, discuss what tightening strategies you might employ (e.g., valid inequalities, symmetry breaking).</p></li>
+</ol>
+<h3 id="part-3-analysis-and-recommendations">Part 3: Analysis and Recommendations</h3>
+<ol type="1">
+<li><p><strong>What-if analysis</strong>: Test at least three of the following scenarios:</p>
+<ul>
+<li>Demand grows 25% across all zones.</li>
+<li>The capital budget is reduced to $9 million.</li>
+<li>Maximum acceptable distances are reduced by 5 miles for all zones (stricter service level).</li>
+<li>One candidate location (your choice) becomes unavailable.</li>
+<li>The Rockford facility must be retained (political/community pressure).</li>
+</ul></li>
+<li><p><strong>Robustness discussion</strong>: How sensitive is the optimal network design to the demand forecasts? If demand shifts geographically (e.g., rural zones grow faster), would the recommended network still perform well? Discuss qualitatively.</p></li>
+<li><p><strong>Board presentation</strong>: Write a concise recommendation memo (1–2 pages) suitable for the NICFB board of directors. Include the recommended network design, total investment required, projected annual costs, key trade-offs considered, and risks. Use non-technical language appropriate for a board audience.</p></li>
+</ol>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown).</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with working AMPL/Gurobi code, results, scenario analysis, and the board memo.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

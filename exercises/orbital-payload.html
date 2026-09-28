@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>In-Class Exercise: The Orbital Payload · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Exercises</span><span class="dl">Download: <a class="chip" href="orbital-payload.md" download>.md</a> <a class="chip" href="orbital-payload.docx" download>DOCX</a></span></div>
+<article class="prose">
+<h1 id="in-class-exercise-the-orbital-payload">In-Class Exercise: The Orbital Payload</h1>
+<p>Time Limit: 15 Minutes</p>
+<p>Tools Allowed: Pen &amp; Paper, Excel, Calculator, Python, AI, or Guesswork.</p>
+<h3 id="the-scenario">The Scenario</h3>
+<p>You are the Lead Mission Engineer for a new CubeSat satellite launch. Your team has developed <strong>5 distinct scientific instruments</strong> (Modules), but the rocket has strict limits on <strong>Weight</strong> and <strong>Power Supply</strong>.</p>
+<p>Your goal is to select which subset of instruments to include on the manifest to maximize the total <strong>Scientific Value (Score)</strong>.</p>
+<h3 id="the-data">The Data</h3>
+<p>The Constraints (The Limits)</p>
+<p>The satellite bus has the following hard capacities:</p>
+<ol type="1">
+<li><p><strong>Maximum Weight:</strong> 60 kg</p></li>
+<li><p><strong>Maximum Power Draw:</strong> 50 Watts</p></li>
+</ol>
+<p>The Candidates (The Instruments)</p>
+<p>You can choose to include (1) or exclude (0) each instrument. You cannot take partial instruments, and you have only one of each.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th><strong>Instrument Name</strong></th>
+<th><strong>Weight (kg)</strong></th>
+<th><strong>Power Draw (Watts)</strong></th>
+<th><strong>Scientific Value (Score)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. Alpha Imager</strong></td>
+<td>30 kg</td>
+<td>10 W</td>
+<td><strong>60</strong></td>
+</tr>
+<tr>
+<td><strong>B. Beta Sensor</strong></td>
+<td>20 kg</td>
+<td>20 W</td>
+<td><strong>45</strong></td>
+</tr>
+<tr>
+<td><strong>C. Gamma Ray Detector</strong></td>
+<td>15 kg</td>
+<td>15 W</td>
+<td><strong>40</strong></td>
+</tr>
+<tr>
+<td><strong>D. Delta Comm Array</strong></td>
+<td>10 kg</td>
+<td>30 W</td>
+<td><strong>50</strong></td>
+</tr>
+<tr>
+<td><strong>E. Epsilon Magnetometer</strong></td>
+<td>5 kg</td>
+<td>5 W</td>
+<td><strong>10</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="your-task">Your Task</h3>
+<p>Answer the following questions:</p>
+<ol type="1">
+<li><p><strong>The Manifest:</strong> Which instruments are you loading onto the satellite? (e.g., “A, C, and E”)</p></li>
+<li><p><strong>The Check:</strong> What is the Total Weight and Total Power of your selection? (Must be $$ 60kg and $$ 50W)</p></li>
+<li><p><strong>The Result:</strong> What is your Total Scientific Value?</p></li>
+<li><p><strong>The Method:</strong></p>
+<ul>
+<li><p>Did you try to pick the highest value items first? Did that work?</p></li>
+<li><p>Did you calculate “Value per kg”?</p></li>
+<li><p>If you used AI, did it understand that you can only take <strong>one</strong> of each (Binary constraint)?</p></li>
+</ul></li>
+</ol>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

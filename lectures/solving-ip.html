@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISYE 671: Linear Optimization and Network Flows — Lecture Notes · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Lectures</span><span class="dl">Download: <a class="chip" href="solving-ip.md" download>.md</a> <a class="chip" href="solving-ip.pdf" download>PDF</a></span></div>
+<article class="prose">
+<h1 id="isye-671-linear-optimization-and-network-flows-lecture-notes">ISYE 671: Linear Optimization and Network Flows — Lecture Notes</h1>
+<h2 id="solving-integer-programming-models">Solving Integer Programming Models</h2>
+<p><strong>Instructor:</strong> Dr. Ziteng Wang | <strong>Date:</strong> February 16, 2026 | <strong>Reading:</strong> Rardin, Chapter 12</p>
+<hr />
+<h2 id="why-is-integer-programming-hard">1. Why Is Integer Programming Hard?</h2>
+<p>Last week we formulated integer programming (IP) models — binary variables for yes/no decisions, switching constraints linking continuous and binary variables, big-M disjunctions, and so on. Today we ask: <em>how do we solve these models, and why is it so much harder than LP?</em></p>
+<h3 id="the-fundamental-difficulty">1.1 The Fundamental Difficulty</h3>
+<p>Recall that the simplex method solves LPs efficiently by walking along edges of a convex polyhedron. The feasible region of an LP is a <em>convex set</em>, and any local optimum is a global optimum. Adding integrality constraints destroys this structure. The feasible region of an IP is a discrete set of points — there are no edges to walk along, no gradient to follow, and no guarantee that a “nearby” feasible solution is anywhere close to optimal.</p>
+<p>Consider a binary program with <span class="math inline">\(n\)</span> variables. The brute-force approach — enumerate all <span class="math inline">\(2^n\)</span> combinations — is hopelessly slow. With <span class="math inline">\(n = 50\)</span>, we face over <span class="math inline">\(10^{15}\)</span> candidates. With <span class="math inline">\(n = 100\)</span>, the number exceeds the number of atoms in the observable universe. Yet modern solvers routinely handle problems with thousands of binary variables. How?</p>
+<p>The answer lies in a suite of techniques that exploit the <em>LP relaxation</em> as a guide. The core ideas are relaxation, bounding, branching, and cutting — all working together to prune the search space so that only a tiny fraction of the <span class="math inline">\(2^n\)</span> combinations are ever examined.</p>
+<h3 id="computational-complexity">1.2 Computational Complexity</h3>
+<p>Integer programming is NP-hard in general. This means:</p>
+<ul>
+<li>No algorithm is known that solves all IP instances in polynomial time.</li>
+<li>The worst-case running time grows exponentially with problem size.</li>
+<li>Even determining whether a feasible integer solution <em>exists</em> is NP-complete.</li>
+</ul>
+<p>By contrast, linear programming is solvable in polynomial time (via interior point methods) and in practice is extremely fast via the simplex method. The difference in computational difficulty between LP and IP is not incremental — it is a fundamental divide in the theory of computation.</p>
+<p><strong>However</strong>, NP-hardness is a <em>worst-case</em> statement. Many practical instances are solved efficiently thanks to problem structure that solvers can exploit. Understanding the solution methods helps us formulate models that are easier for solvers to handle.</p>
+<h3 id="lp-vs.-ip-a-visual-comparison">1.3 LP vs. IP: A Visual Comparison</h3>
+<p>Consider a two-variable integer program:</p>
+<p><span class="math display">\[\max \; 3x_1 + 2x_2\]</span></p>
+<p><span class="math display">\[\text{s.t.} \quad 2x_1 + x_2 \leq 6\]</span></p>
+<p><span class="math display">\[x_1 + 2x_2 \leq 6\]</span></p>
+<p><span class="math display">\[x_1, x_2 \geq 0, \quad x_1, x_2 \in \mathbb{Z}\]</span></p>
+<p>The LP relaxation feasible region is a polygon; the IP feasible region is the set of integer-coordinate points inside that polygon. The LP optimal solution <span class="math inline">\((2, 2)\)</span> happens to be integer here — but that is a lucky coincidence, not the norm. When the LP optimal is fractional, we must work harder.</p>
+<hr />
+<h2 id="lp-relaxation-and-bounds">2. LP Relaxation and Bounds</h2>
+<h3 id="what-is-lp-relaxation">2.1 What Is LP Relaxation?</h3>
+<p>Given an IP model, its <strong>LP relaxation</strong> is obtained by dropping all integrality constraints. Binary variables <span class="math inline">\(y_j \in \{0, 1\}\)</span> become <span class="math inline">\(0 \leq y_j \leq 1\)</span>; general integer variables <span class="math inline">\(x_j \in \mathbb{Z}_+\)</span> become <span class="math inline">\(x_j \geq 0\)</span>.</p>
+<p>The LP relaxation is a <em>larger</em> problem — it has more feasible solutions (every integer solution is also LP-feasible, but not vice versa). Therefore:</p>
+<ul>
+<li>For a <strong>minimization</strong> IP: <span class="math inline">\(z^*_{LP} \leq z^*_{IP}\)</span> (the LP relaxation gives a <strong>lower bound</strong>).</li>
+<li>For a <strong>maximization</strong> IP: <span class="math inline">\(z^*_{LP} \geq z^*_{IP}\)</span> (the LP relaxation gives an <strong>upper bound</strong>).</li>
+</ul>
+<p>In either case, the LP relaxation provides a <strong>bound</strong> on the best possible IP solution.</p>
+<h3 id="the-integrality-gap">2.2 The Integrality Gap</h3>
+<p>The <strong>integrality gap</strong> measures how far apart the LP relaxation bound and the true IP optimum are:</p>
+<p><span class="math display">\[\text{Gap} = \frac{|z^*_{IP} - z^*_{LP}|}{|z^*_{IP}|} \times 100\%\]</span></p>
+<p>A small gap means the LP relaxation is a tight approximation of the IP — the solver has less searching to do. A large gap means the LP relaxation is loose, and the solver must explore more of the search tree.</p>
+<p><strong>Practical insight:</strong> The tightness of the LP relaxation depends on the formulation. Two mathematically equivalent IP formulations can have very different LP relaxations, leading to dramatically different solve times. This is why modeling choices matter even when the problem is “the same.”</p>
+<h3 id="examples-from-our-models">2.3 Examples from Our Models</h3>
+<p>Recall from last week’s lecture:</p>
+<ul>
+<li><strong>Swedish Steel (LP):</strong> 9,953.7 kroner → <strong>Swedish Steel (IP with fixed charges):</strong> 11,017.1 kroner. The gap reflects the cost of setup decisions that the LP relaxation can “partially” activate.</li>
+<li><strong>NASA Capital Budgeting:</strong> The LP relaxation can “fractionally” select missions, spending partial budgets. The IP must commit fully to each mission.</li>
+</ul>
+<p>We will compute these gaps explicitly in the notebook.</p>
+<h3 id="when-does-lp-relaxation-solve-the-ip-exactly">2.4 When Does LP Relaxation Solve the IP Exactly?</h3>
+<p>There are important special cases where the LP relaxation naturally produces integer solutions:</p>
+<ul>
+<li><strong>Totally unimodular (TU) constraint matrices</strong>: If the constraint matrix <span class="math inline">\(A\)</span> is TU and the right-hand side <span class="math inline">\(b\)</span> is integer, then every vertex of the LP polyhedron is integer. Network flow problems (transportation, assignment, shortest path) have TU matrices — this is why our network LP models from earlier in the course produced integer solutions “for free.”</li>
+<li><strong>Integrality of polyhedra</strong>: The theory of total unimodularity tells us precisely when LP relaxation suffices. This is one reason network optimization is computationally easier than general IP.</li>
+</ul>
+<hr />
+<h2 id="branch-and-bound">3. Branch and Bound</h2>
+<h3 id="the-core-idea">3.1 The Core Idea</h3>
+<p>Branch and bound (B&amp;B) is the workhorse algorithm for integer programming. It systematically divides the feasible region into subproblems (branching) while using LP relaxation bounds to prune subproblems that cannot contain the optimal solution (bounding).</p>
+<p>The algorithm maintains two key quantities:</p>
+<ul>
+<li><strong>Best known feasible solution</strong> (the “incumbent”) with objective value <span class="math inline">\(\bar{z}\)</span>.</li>
+<li><strong>LP relaxation bounds</strong> for each active subproblem.</li>
+</ul>
+<h3 id="algorithm-outline">3.2 Algorithm Outline</h3>
+<p><strong>Step 1: Initialize.</strong> Solve the LP relaxation of the original IP. If the solution is integer, we are done. Otherwise, set the LP bound and begin branching.</p>
+<p><strong>Step 2: Branch.</strong> Select a variable <span class="math inline">\(x_j\)</span> whose LP relaxation value <span class="math inline">\(x_j^* = f\)</span> is fractional. Create two subproblems:</p>
+<ul>
+<li><strong>Left child:</strong> Add constraint <span class="math inline">\(x_j \leq \lfloor f \rfloor\)</span></li>
+<li><strong>Right child:</strong> Add constraint <span class="math inline">\(x_j \geq \lceil f \rceil\)</span></li>
+</ul>
+<p>For binary variables, this becomes <span class="math inline">\(x_j = 0\)</span> (left) and <span class="math inline">\(x_j = 1\)</span> (right).</p>
+<p><strong>Step 3: Bound.</strong> Solve the LP relaxation of each subproblem. Three outcomes:</p>
+<ul>
+<li><em>Infeasible</em>: Prune this subproblem (no integer solution possible here).</li>
+<li><em>LP bound worse than incumbent</em>: Prune (no improvement possible here).</li>
+<li><em>LP solution is integer</em>: Update incumbent if this solution is better.</li>
+<li><em>LP solution is fractional with promising bound</em>: Keep this subproblem for further branching.</li>
+</ul>
+<p><strong>Step 4: Repeat.</strong> Select the next active subproblem and branch. Continue until no active subproblems remain.</p>
+<h3 id="a-worked-example">3.3 A Worked Example</h3>
+<p>Consider the following small IP:</p>
+<p><span class="math display">\[\max \; 4x_1 + 5x_2\]</span></p>
+<p><span class="math display">\[\text{s.t.} \quad x_1 + x_2 \leq 5\]</span></p>
+<p><span class="math display">\[6x_1 + 10x_2 \leq 45\]</span></p>
+<p><span class="math display">\[x_1, x_2 \geq 0, \quad x_1, x_2 \in \mathbb{Z}\]</span></p>
+<p><strong>Node 0 (Root):</strong> LP relaxation gives <span class="math inline">\(x_1 = 1.25\)</span>, <span class="math inline">\(x_2 = 3.75\)</span>, <span class="math inline">\(z_{LP} = 23.75\)</span>. Both variables are fractional.</p>
+<p><strong>Branch on <span class="math inline">\(x_2\)</span></strong> (largest fractional part):</p>
+<ul>
+<li><strong>Node 1:</strong> Add <span class="math inline">\(x_2 \leq 3\)</span>. LP gives <span class="math inline">\(x_1 = 2\)</span>, <span class="math inline">\(x_2 = 3\)</span>, <span class="math inline">\(z_{LP} = 23\)</span>. <strong>Integer!</strong> Set incumbent <span class="math inline">\(\bar{z} = 23\)</span>.</li>
+<li><strong>Node 2:</strong> Add <span class="math inline">\(x_2 \geq 4\)</span>. LP gives <span class="math inline">\(x_1 = 0.833\)</span>, <span class="math inline">\(x_2 = 4\)</span>, <span class="math inline">\(z_{LP} = 23.33\)</span>. Fractional, and bound <span class="math inline">\(23.33 &gt; 23\)</span> (incumbent), so this node is worth exploring.</li>
+</ul>
+<p>Node 1 is pruned by integrality (it produced an integer solution). We continue with Node 2.</p>
+<p><strong>Branch on <span class="math inline">\(x_1\)</span> at Node 2:</strong></p>
+<ul>
+<li><strong>Node 3:</strong> <span class="math inline">\(x_1 \leq 0, x_2 \geq 4\)</span>. LP gives <span class="math inline">\(x_1 = 0, x_2 = 4.5\)</span>, <span class="math inline">\(z_{LP} = 22.5\)</span>. Bound <span class="math inline">\(22.5 &lt; 23\)</span> (incumbent). <strong>Pruned by bound</strong> — no integer solution in this subregion can beat 23.</li>
+<li><strong>Node 4:</strong> <span class="math inline">\(x_1 \geq 1, x_2 \geq 4\)</span>. The constraints require <span class="math inline">\(6(1) + 10(4) = 46 &gt; 45\)</span>, so this subproblem is <strong>infeasible</strong>. <strong>Pruned by infeasibility.</strong></li>
+</ul>
+<p>No active nodes remain. <strong>Optimal:</strong> <span class="math inline">\(x_1 = 2, x_2 = 3, z^* = 23\)</span>.</p>
+<p><strong>Observations:</strong> This small example illustrates all three pruning mechanisms: integrality (Node 1), bounding (Node 3), and infeasibility (Node 4). The B&amp;B tree had only 5 nodes instead of the 36 integer points we would need to enumerate.</p>
+<h3 id="branching-strategies">3.4 Branching Strategies</h3>
+<p>The order in which we select variables to branch on and subproblems to explore significantly affects performance:</p>
+<ul>
+<li><strong>Variable selection</strong>: Branch on the variable with the largest fractional part, or use <em>strong branching</em> (trial-solve both children to pick the most informative split).</li>
+<li><strong>Node selection</strong>: <em>Best-first</em> (pick the node with the best LP bound — explores the most promising areas first); <em>depth-first</em> (dive deep quickly to find feasible solutions early, reducing the incumbent).</li>
+<li>Modern solvers use sophisticated hybrid strategies that adapt during the search.</li>
+</ul>
+<h3 id="pruning-rules">3.5 Pruning Rules</h3>
+<p>A subproblem is pruned (not explored further) when:</p>
+<ol type="1">
+<li><strong>Infeasibility</strong>: The LP relaxation of the subproblem is infeasible.</li>
+<li><strong>Bound</strong>: The LP relaxation bound is no better than the current incumbent.</li>
+<li><strong>Integrality</strong>: The LP relaxation produces an integer solution (update incumbent if better).</li>
+</ol>
+<p>The tighter the LP relaxation, the more effective pruning is — this is why formulation quality matters so much.</p>
+<hr />
+<h2 id="cutting-planes-and-branch-and-cut">4. Cutting Planes and Branch-and-Cut</h2>
+<h3 id="the-idea">4.1 The Idea</h3>
+<p>Branch and bound can be slow when the LP relaxation is loose. <strong>Cutting planes</strong> are additional linear inequalities that tighten the LP relaxation without removing any integer-feasible solutions. A valid cut is satisfied by all integer solutions but violated by some fractional LP solutions (ideally including the current LP optimal). Adding cuts shrinks the LP polyhedron toward the <strong>convex hull</strong> of integer solutions.</p>
+<p>Several families of cuts are used in practice: <strong>Gomory cuts</strong> (derived mechanically from the LP tableau), <strong>cover inequalities</strong> for knapsack-type constraints, <strong>flow cover cuts</strong> for fixed-charge networks, and <strong>clique inequalities</strong> for conflict constraints. Modern solvers apply these automatically.</p>
+<h3 id="branch-and-cut">4.2 Branch and Cut</h3>
+<p>Modern MIP solvers combine cutting planes with branch and bound in an algorithm called <strong>branch and cut</strong>. At each B&amp;B node, the solver generates and adds violated cuts to tighten the LP relaxation before deciding whether to branch. When you see solver output like “Cuts: 142 applied,” this is branch and cut at work.</p>
+<hr />
+<h2 id="interpreting-mip-solver-output">5. Interpreting MIP Solver Output</h2>
+<h3 id="what-to-look-for">5.1 What to Look For</h3>
+<p>When solving a MIP, the solver produces a log that tells you a great deal about the solution process. Here are the key elements:</p>
+<p><strong>LP relaxation bound</strong>: The objective value of the initial LP relaxation. This is the theoretical best the IP could achieve.</p>
+<p><strong>Incumbent / best feasible</strong>: The best integer-feasible solution found so far.</p>
+<p><strong>MIP gap</strong>: <span class="math inline">\(\frac{|\text{best bound} - \text{incumbent}|}{|\text{incumbent}|} \times 100\%\)</span>. When this reaches zero (or your tolerance), the solver has proven optimality.</p>
+<p><strong>Nodes explored</strong>: How many B&amp;B nodes were processed. More nodes = harder problem.</p>
+<p><strong>Cuts applied</strong>: Number and type of cutting planes added.</p>
+<p><strong>Time</strong>: Total solve time.</p>
+<h3 id="reading-a-gurobi-log">5.2 Reading a Gurobi Log</h3>
+<p>A typical Gurobi MIP log looks like:</p>
+<pre><code>Optimize a model with 9 rows, 29 columns and 59 nonzeros
+Model fingerprint: 0x3a7b8c1d
+Variable types: 14 continuous, 15 integer (15 binary)
+...
+Root relaxation: objective 8.234000e+03, 12 iterations, 0.00 seconds
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 8234.0000    0    4        -    8234.0000      -     -    0s
+H    0     0                    9385.0000 8234.0000  12.3%     -    0s
+     0     0 8567.0000    0    3 9385.0000 8567.0000  8.72%     -    0s
+*    0     0               0    9210.0000 9210.0000  0.00%     -    0s
+
+Explored 1 nodes (18 simplex iterations) in 0.01 seconds
+Optimal solution found (tolerance 1.00e-04)
+Best objective 9.210000e+03, best bound 9.210000e+03, gap 0.0000%</code></pre>
+<p>Key observations: “H” denotes a heuristic found the first feasible solution (incumbent = 9,385). The root LP relaxation gives a bound of 8,234. After cuts at node 0, the bound tightens to 8,567. The “*” marks the node where the optimal integer solution was found. The final line confirms a 0% gap — provably optimal.</p>
+<h3 id="common-gurobi-options-in-ampl">5.3 Common Gurobi Options in AMPL</h3>
+<pre><code>option solver gurobi;
+option gurobi_options &#39;mipgap=0.01 timelim=300 outlev=1&#39;;</code></pre>
+<ul>
+<li><code>mipgap</code>: Stop when the relative gap drops below this threshold (e.g., 0.01 = 1%). Useful for large problems where proving exact optimality is too slow.</li>
+<li><code>timelim</code>: Maximum solve time in seconds. The solver returns the best solution found within the limit.</li>
+<li><code>outlev</code>: Output level (0 = silent, 1 = verbose log). Set to 1 when you want to inspect the solve process.</li>
+<li><code>presolve</code>: Controls presolve intensity (0 = off, 1 = conservative, 2 = aggressive). Presolve simplifies the model before solving.</li>
+</ul>
+<hr />
+<h2 id="computational-complexity-in-practice">6. Computational Complexity in Practice</h2>
+<h3 id="scaling-behavior">6.1 Scaling Behavior</h3>
+<p>While LP solve time scales roughly as <span class="math inline">\(O(n^{2-3})\)</span> with problem size (in practice), IP solve time can grow exponentially. A problem with 10 binary variables might solve in milliseconds; the same problem structure with 100 binary variables might take minutes; with 1,000 variables, it might be intractable without good cuts or structure.</p>
+<h3 id="what-makes-an-ip-easy-or-hard">6.2 What Makes an IP Easy or Hard?</h3>
+<p>Several factors affect practical difficulty:</p>
+<ul>
+<li><strong>LP relaxation tightness</strong>: Tight relaxations (small integrality gap) allow more pruning.</li>
+<li><strong>Problem structure</strong>: Network problems, set covering with good coefficients, and problems with “almost” TU matrices tend to be easier.</li>
+<li><strong>Constraint density</strong>: Highly constrained problems may be easier (fewer feasible solutions) or harder (more complex LP relaxations), depending on the structure.</li>
+<li><strong>Objective coefficients</strong>: Flat objectives (many solutions with similar values) make it hard to prune.</li>
+<li><strong>Symmetry</strong>: Problems with many equivalent solutions (e.g., facility location with identical facilities) create large B&amp;B trees unless symmetry-breaking constraints are added.</li>
+</ul>
+<h3 id="demonstration-strategy">6.3 Demonstration Strategy</h3>
+<p>In the notebook, we will scale up the scheduling problem from 3 jobs to 5, 7, 9, … jobs and observe how solve time and node count grow. We compare this to the LP relaxation, which scales gracefully. This makes the NP-hardness result tangible.</p>
+<hr />
+<h2 id="practical-tips-for-integer-programming">7. Practical Tips for Integer Programming</h2>
+<ol type="1">
+<li><strong>Start with the LP relaxation.</strong> Always solve it first. If the gap is large, consider reformulating.</li>
+<li><strong>Use the tightest formulation you can.</strong> Tighter Big-M values, tighter upper bounds in switching constraints, additional valid inequalities — all help.</li>
+<li><strong>Set appropriate tolerances.</strong> For large problems, a 1% gap is often sufficient for practical decisions.</li>
+<li><strong>Use solver heuristics.</strong> Providing a good initial solution (warm start) can dramatically speed up the search.</li>
+<li><strong>Exploit structure.</strong> If your problem has network structure, use network-aware formulations. If it has symmetry, add symmetry-breaking constraints.</li>
+<li><strong>Monitor the solver log.</strong> If the gap is not closing, consider reformulating, adding cuts, or increasing the time limit.</li>
+</ol>
+<hr />
+<h2 id="summary">8. Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Key Idea</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LP Relaxation</td>
+<td>Drop integrality → get a bound on IP optimal</td>
+</tr>
+<tr>
+<td>Integrality Gap</td>
+<td>Measures quality of LP relaxation</td>
+</tr>
+<tr>
+<td>Branch and Bound</td>
+<td>Divide into subproblems, prune via LP bounds</td>
+</tr>
+<tr>
+<td>Cutting Planes</td>
+<td>Add inequalities that tighten LP relaxation</td>
+</tr>
+<tr>
+<td>Branch and Cut</td>
+<td>Modern hybrid: cuts + branching at every node</td>
+</tr>
+<tr>
+<td>Solver output</td>
+<td>Gap, nodes, cuts, time tell you the story</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Next lecture:</strong> Duality and sensitivity analysis for LP (or as scheduled in your syllabus).</p>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>

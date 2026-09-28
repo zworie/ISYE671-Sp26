@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study 3: Network Models · ISYE 671</title>
+<meta name="description" content="ISYE 671 · Linear Optimization and Network Flows">
+<link rel="stylesheet" href="../assets/style.css">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="../index.html"><span class="brand-code">ISYE 671</span><span class="brand-name">Linear Optimization &amp; Network Flows</span></a>
+    <nav><a href="../index.html#modules">Modules</a><a href="../index.html#homework">Homework</a><a href="../index.html#project">Project</a><a href="../syllabus.html">Syllabus</a><a href="https://github.com/zworie/ISYE671-Sp26" class="gh">GitHub</a></nav>
+  </div>
+</header>
+<main class="wrap doc">
+<div class="doc-meta"><span class="crumb"><a href="../index.html">Home</a> / Project</span><span class="dl">Download: <a class="chip" href="case-study-3-network-models.md" download>.md</a></span></div>
+<article class="prose">
+<h1 id="case-study-3-network-models">Case Study 3: Network Models</h1>
+<h2 id="municipal-water-distribution-system-optimization">Municipal Water Distribution System Optimization</h2>
+<h3 id="isye-671-linear-optimization-and-network-flows">ISYE 671 — Linear Optimization and Network Flows</h3>
+<hr />
+<h2 id="background">Background</h2>
+<p>The city of Riverton (a fictional mid-sized midwestern city, population 185,000) is upgrading its municipal water distribution system. The city’s water utility draws from three source types — a river intake plant, a reservoir, and a set of deep wells — and distributes treated water through a network of pumping stations, storage tanks, and transmission mains to residential, commercial, and industrial customers distributed across the city.</p>
+<p>The utility’s Chief Engineer has asked you to develop a minimum-cost flow model to determine the optimal daily water routing plan. The network must satisfy all customer demands, respect pipeline capacities and pressure constraints, and minimize the combined cost of water sourcing, treatment, and pumping. A secondary concern is system resilience: the city council wants to understand what happens if a key pipeline segment is taken offline for maintenance.</p>
+<hr />
+<h2 id="network-description">Network Description</h2>
+<p>The water distribution network consists of <strong>24 nodes</strong> and <strong>43 arcs</strong>. Nodes represent sources, treatment plants, pumping stations, storage tanks, and demand zones. Arcs represent pipeline segments with associated capacities and costs.</p>
+<h3 id="node-data">Node Data</h3>
+<p><strong>Source Nodes</strong> (supply):</p>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 16%" />
+<col style="width: 27%" />
+<col style="width: 27%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th>Type</th>
+<th style="text-align: center;">Max Daily Supply (million gallons/day, MGD)</th>
+<th style="text-align: center;">Source Cost ($/1000 gal)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">S1</td>
+<td>River Intake</td>
+<td style="text-align: center;">28.0</td>
+<td style="text-align: center;">0.35</td>
+</tr>
+<tr>
+<td style="text-align: center;">S2</td>
+<td>Reservoir</td>
+<td style="text-align: center;">18.0</td>
+<td style="text-align: center;">0.20</td>
+</tr>
+<tr>
+<td style="text-align: center;">S3</td>
+<td>Well Field A</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.55</td>
+</tr>
+<tr>
+<td style="text-align: center;">S4</td>
+<td>Well Field B</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.60</td>
+</tr>
+</tbody>
+</table>
+<p>Total source capacity: 60 MGD.</p>
+<p><strong>Treatment Plant Nodes</strong> (transshipment with processing cost):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th>Type</th>
+<th style="text-align: center;">Max Throughput (MGD)</th>
+<th style="text-align: center;">Treatment Cost ($/1000 gal)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">T1</td>
+<td>Main Treatment Plant</td>
+<td style="text-align: center;">30.0</td>
+<td style="text-align: center;">0.80</td>
+</tr>
+<tr>
+<td style="text-align: center;">T2</td>
+<td>Secondary Treatment Plant</td>
+<td style="text-align: center;">20.0</td>
+<td style="text-align: center;">0.95</td>
+</tr>
+<tr>
+<td style="text-align: center;">T3</td>
+<td>Well Water Treatment (chlorination)</td>
+<td style="text-align: center;">12.0</td>
+<td style="text-align: center;">0.40</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pumping Station Nodes</strong> (transshipment with pumping cost):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th>Type</th>
+<th style="text-align: center;">Max Throughput (MGD)</th>
+<th style="text-align: center;">Pumping Cost ($/1000 gal)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">P1</td>
+<td>High-Lift Station (downtown)</td>
+<td style="text-align: center;">20.0</td>
+<td style="text-align: center;">0.15</td>
+</tr>
+<tr>
+<td style="text-align: center;">P2</td>
+<td>Booster Station (east)</td>
+<td style="text-align: center;">18.0</td>
+<td style="text-align: center;">0.18</td>
+</tr>
+<tr>
+<td style="text-align: center;">P3</td>
+<td>Booster Station (west)</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.20</td>
+</tr>
+<tr>
+<td style="text-align: center;">P4</td>
+<td>Booster Station (south)</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.22</td>
+</tr>
+<tr>
+<td style="text-align: center;">P5</td>
+<td>Hilltop Station (elevated zones)</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.30</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Storage Tank Nodes</strong> (transshipment with no cost, but bounded inventory):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th>Type</th>
+<th style="text-align: center;">Max Storage (MG)</th>
+<th style="text-align: center;">Min Storage (MG)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">K1</td>
+<td>Central Reservoir Tank</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">1.5</td>
+</tr>
+<tr>
+<td style="text-align: center;">K2</td>
+<td>East Elevated Tank</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">0.5</td>
+</tr>
+<tr>
+<td style="text-align: center;">K3</td>
+<td>West Ground Tank</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.8</td>
+</tr>
+<tr>
+<td style="text-align: center;">K4</td>
+<td>South Elevated Tank</td>
+<td style="text-align: center;">1.5</td>
+<td style="text-align: center;">0.4</td>
+</tr>
+</tbody>
+</table>
+<p>Storage tanks begin and end the day at their minimum level (steady-state assumption for daily planning). They can receive and discharge water during the day; the net daily flow must be zero.</p>
+<p><strong>Demand Nodes</strong> (demand):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Node</th>
+<th>Zone Description</th>
+<th style="text-align: center;">Daily Demand (MGD)</th>
+<th style="text-align: center;">Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">D1</td>
+<td>Downtown commercial district</td>
+<td style="text-align: center;">5.2</td>
+<td style="text-align: center;">Critical</td>
+</tr>
+<tr>
+<td style="text-align: center;">D2</td>
+<td>University campus</td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;">Critical</td>
+</tr>
+<tr>
+<td style="text-align: center;">D3</td>
+<td>East residential</td>
+<td style="text-align: center;">6.5</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D4</td>
+<td>West residential</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D5</td>
+<td>South residential</td>
+<td style="text-align: center;">4.2</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D6</td>
+<td>North residential</td>
+<td style="text-align: center;">3.5</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D7</td>
+<td>Industrial park (east)</td>
+<td style="text-align: center;">7.8</td>
+<td style="text-align: center;">Critical</td>
+</tr>
+<tr>
+<td style="text-align: center;">D8</td>
+<td>Hospital / medical campus</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">Emergency</td>
+</tr>
+<tr>
+<td style="text-align: center;">D9</td>
+<td>Commercial corridor (west)</td>
+<td style="text-align: center;">3.5</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D10</td>
+<td>New development (south)</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">Standard</td>
+</tr>
+<tr>
+<td style="text-align: center;">D11</td>
+<td>Airport and surrounding area</td>
+<td style="text-align: center;">1.5</td>
+<td style="text-align: center;">Critical</td>
+</tr>
+</tbody>
+</table>
+<p>Total daily demand: 45.0 MGD.</p>
+<p><strong>Priority classifications</strong> will be used in the resilience analysis (Part 3).</p>
+<h3 id="arc-data">Arc Data</h3>
+<p>Each arc has a capacity (max flow in MGD), a per-unit flow cost ($/1000 gallons, representing pumping energy and pipeline maintenance), and a minimum flow (to maintain water quality — stagnant water in pipes is a health concern).</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">Arc</th>
+<th style="text-align: center;">From</th>
+<th style="text-align: center;">To</th>
+<th style="text-align: center;">Capacity (MGD)</th>
+<th style="text-align: center;">Min Flow (MGD)</th>
+<th style="text-align: center;">Cost ($/1000 gal)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">A1</td>
+<td style="text-align: center;">S1</td>
+<td style="text-align: center;">T1</td>
+<td style="text-align: center;">28.0</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: center;">A2</td>
+<td style="text-align: center;">S1</td>
+<td style="text-align: center;">T2</td>
+<td style="text-align: center;">20.0</td>
+<td style="text-align: center;">1.0</td>
+<td style="text-align: center;">0.08</td>
+</tr>
+<tr>
+<td style="text-align: center;">A3</td>
+<td style="text-align: center;">S2</td>
+<td style="text-align: center;">T1</td>
+<td style="text-align: center;">15.0</td>
+<td style="text-align: center;">1.0</td>
+<td style="text-align: center;">0.06</td>
+</tr>
+<tr>
+<td style="text-align: center;">A4</td>
+<td style="text-align: center;">S2</td>
+<td style="text-align: center;">T2</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.07</td>
+</tr>
+<tr>
+<td style="text-align: center;">A5</td>
+<td style="text-align: center;">S3</td>
+<td style="text-align: center;">T3</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A6</td>
+<td style="text-align: center;">S4</td>
+<td style="text-align: center;">T3</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A7</td>
+<td style="text-align: center;">T1</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">22.0</td>
+<td style="text-align: center;">1.0</td>
+<td style="text-align: center;">0.10</td>
+</tr>
+<tr>
+<td style="text-align: center;">A8</td>
+<td style="text-align: center;">T1</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">12.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.12</td>
+</tr>
+<tr>
+<td style="text-align: center;">A9</td>
+<td style="text-align: center;">T1</td>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.11</td>
+</tr>
+<tr>
+<td style="text-align: center;">A10</td>
+<td style="text-align: center;">T2</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.10</td>
+</tr>
+<tr>
+<td style="text-align: center;">A11</td>
+<td style="text-align: center;">T2</td>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">0.13</td>
+</tr>
+<tr>
+<td style="text-align: center;">A11b</td>
+<td style="text-align: center;">T2</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">18.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.14</td>
+</tr>
+<tr>
+<td style="text-align: center;">A12</td>
+<td style="text-align: center;">T3</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;">0.09</td>
+</tr>
+<tr>
+<td style="text-align: center;">A13</td>
+<td style="text-align: center;">T3</td>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;">0.10</td>
+</tr>
+<tr>
+<td style="text-align: center;">A14</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">K1</td>
+<td style="text-align: center;">15.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A15</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">D1</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A16</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">D2</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: center;">A17</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.08</td>
+</tr>
+<tr>
+<td style="text-align: center;">A18</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">K2</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A19</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: center;">A20</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">D7</td>
+<td style="text-align: center;">12.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.06</td>
+</tr>
+<tr>
+<td style="text-align: center;">A21</td>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">K3</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A22</td>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">D4</td>
+<td style="text-align: center;">8.0</td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: center;">A23</td>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">D9</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;">0.06</td>
+</tr>
+<tr>
+<td style="text-align: center;">A24</td>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">K4</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A25</td>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">D5</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: center;">A26</td>
+<td style="text-align: center;">P4</td>
+<td style="text-align: center;">D10</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.06</td>
+</tr>
+<tr>
+<td style="text-align: center;">A27</td>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">D6</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;">0.07</td>
+</tr>
+<tr>
+<td style="text-align: center;">A28</td>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">D11</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.08</td>
+</tr>
+<tr>
+<td style="text-align: center;">A29</td>
+<td style="text-align: center;">K1</td>
+<td style="text-align: center;">D1</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.02</td>
+</tr>
+<tr>
+<td style="text-align: center;">A30</td>
+<td style="text-align: center;">K1</td>
+<td style="text-align: center;">D2</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A31</td>
+<td style="text-align: center;">K1</td>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.06</td>
+</tr>
+<tr>
+<td style="text-align: center;">A32</td>
+<td style="text-align: center;">K2</td>
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">5.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.02</td>
+</tr>
+<tr>
+<td style="text-align: center;">A33</td>
+<td style="text-align: center;">K2</td>
+<td style="text-align: center;">D7</td>
+<td style="text-align: center;">10.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A34</td>
+<td style="text-align: center;">K3</td>
+<td style="text-align: center;">D4</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.02</td>
+</tr>
+<tr>
+<td style="text-align: center;">A35</td>
+<td style="text-align: center;">K3</td>
+<td style="text-align: center;">D9</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A36</td>
+<td style="text-align: center;">K4</td>
+<td style="text-align: center;">D5</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.02</td>
+</tr>
+<tr>
+<td style="text-align: center;">A37</td>
+<td style="text-align: center;">K4</td>
+<td style="text-align: center;">D10</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A38</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: center;">D8</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">0.04</td>
+</tr>
+<tr>
+<td style="text-align: center;">A39</td>
+<td style="text-align: center;">K1</td>
+<td style="text-align: center;">D8</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.03</td>
+</tr>
+<tr>
+<td style="text-align: center;">A40</td>
+<td style="text-align: center;">P2</td>
+<td style="text-align: center;">D11</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.09</td>
+</tr>
+<tr>
+<td style="text-align: center;">A41</td>
+<td style="text-align: center;">P3</td>
+<td style="text-align: center;">D6</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.07</td>
+</tr>
+<tr>
+<td style="text-align: center;">A42</td>
+<td style="text-align: center;">K2</td>
+<td style="text-align: center;">P5</td>
+<td style="text-align: center;">2.0</td>
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cost-summary">Cost Summary</h3>
+<p>The total cost of delivering water has three components: 1. <strong>Source cost</strong>: incurred at each source node based on volume drawn. 2. <strong>Treatment cost</strong>: incurred at each treatment plant based on volume processed. 3. <strong>Pumping/pipeline cost</strong>: incurred on each arc based on flow volume.</p>
+<p>All costs are in $/1000 gallons.</p>
+<hr />
+<h2 id="your-assignment">Your Assignment</h2>
+<h3 id="part-1-model-formulation">Part 1: Model Formulation</h3>
+<p>Formulate this as a <strong>minimum-cost network flow</strong> (MCNF) problem.</p>
+<ol type="1">
+<li><p><strong>Network representation</strong>: Formally define the graph <span class="math inline">\(G = (N, A)\)</span>. Classify each node as a supply node, demand node, or transshipment node. Specify the supply/demand value <span class="math inline">\(b_i\)</span> for each node.</p></li>
+<li><p><strong>Handling node costs</strong>: The standard MCNF has costs only on arcs. Describe how you transform node costs (source costs, treatment costs, pumping station costs) into arc costs so the problem fits the MCNF framework. Show the transformation explicitly.</p></li>
+<li><p><strong>Storage tank modeling</strong>: Explain how the storage tanks fit into the network flow model given the steady-state (net-zero daily flow) assumption. What role do they play in routing flexibility?</p></li>
+<li><p><strong>Complete formulation</strong>: Write the full MCNF formulation with objective function and all constraints (flow balance, capacity bounds, minimum flow requirements).</p></li>
+<li><p><strong>Problem structure</strong>: Verify that this problem has the structure required for an MCNF — is the constraint matrix totally unimodular? Will the LP relaxation yield integer solutions? Discuss briefly.</p></li>
+</ol>
+<h3 id="part-2-implementation-and-solution">Part 2: Implementation and Solution</h3>
+<p>Implement and solve the model in a Google Colab notebook using AMPL/Gurobi. Also implement and visualize the network using NetworkX.</p>
+<ol type="1">
+<li><p><strong>AMPL model</strong>: Implement the MCNF model. Report the optimal total daily cost and the optimal flow on every arc.</p></li>
+<li><p><strong>Flow decomposition</strong>: Identify the major flow paths from sources to demand zones. Present the dominant paths (e.g., “S1 → T1 → P1 → D1 carries 4.8 MGD”).</p></li>
+<li><p><strong>Network visualization</strong>: Create a NetworkX diagram of the network. Use node colors to distinguish node types (sources, treatment, pumping, storage, demand). Use edge widths proportional to optimal flow. Label key flows.</p></li>
+<li><p><strong>Source utilization</strong>: What fraction of each source’s capacity is used? Which sources are most and least cost-effective?</p></li>
+</ol>
+<h3 id="part-3-resilience-analysis">Part 3: Resilience Analysis</h3>
+<p>The city council is concerned about system resilience. Analyze the following disruption scenarios:</p>
+<ol type="1">
+<li><p><strong>Pipeline failure</strong>: For each of the following arc removals (one at a time), re-solve the model and report whether all demand can still be met, and at what additional cost:</p>
+<ul>
+<li>Arc A7 (T1 → P1, the main trunk line)</li>
+<li>Arc A20 (P2 → D7, the industrial park feed)</li>
+<li>Arc A1 (S1 → T1, the primary river intake line)</li>
+</ul></li>
+<li><p><strong>Source disruption</strong>: The river intake (S1) is shut down due to contamination for an extended period. Can the remaining sources meet total demand? If not, how much demand must be curtailed, and which demand zones should be curtailed first? Use the priority classifications (Emergency &gt; Critical &gt; Standard) to develop a <strong>prioritized curtailment plan</strong> by modifying the model to allow unmet demand with a penalty cost structure:</p>
+<ul>
+<li>Emergency nodes: $50/1000 gal penalty for unmet demand</li>
+<li>Critical nodes: $20/1000 gal penalty</li>
+<li>Standard nodes: $5/1000 gal penalty</li>
+</ul></li>
+<li><p><strong>Capacity expansion</strong>: Based on your resilience analysis, recommend the single most impactful infrastructure investment the city could make (e.g., a new pipeline segment, expanded source capacity, additional storage). Justify with quantitative evidence from your models.</p></li>
+<li><p><strong>Summary report</strong>: Prepare a technical memorandum (1–2 pages) for the Chief Engineer summarizing the optimal operating plan, key vulnerabilities identified, and your top infrastructure recommendation.</p></li>
+</ol>
+<hr />
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>A written formulation document (PDF or markdown) with the MCNF model and network transformation details.</li>
+<li>A Google Colab notebook (<code>.ipynb</code>) with AMPL/Gurobi implementation, NetworkX visualization, resilience analysis, and the technical memorandum.</li>
+</ul>
+
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>ISYE 671, Northern Illinois University, Spring 2026 · Dr. Ziteng Wang.
+    Materials are shared under <a href="https://github.com/zworie/ISYE671-Sp26/blob/main/LICENSE">CC BY-NC-SA 4.0</a>.
+    Homework solutions and exams are not published.</p>
+  </div>
+</footer>
+</body>
+</html>
